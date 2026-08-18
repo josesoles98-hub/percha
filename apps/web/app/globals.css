@@ -1,0 +1,170 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════════
+   Sistema de diseño · sección 5.1 del documento
+
+   Filosofía: la interfaz debe desaparecer. El contenido son las prendas.
+   Fondo blanco y limpio, un único acento vibrante para lo importante
+   (botones principales, foco, estados activos) y los cuatro colores de
+   estado como única información cromática extra: se leen de un vistazo
+   sin competir entre sí.
+
+   El tema es siempre claro, a propósito: no sigue el modo oscuro del
+   sistema. Así se ve igual en cualquier teléfono, sin depender del
+   ajuste de cada quien.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Tipografía del sistema: carga instantánea, se ve nativa en iPhone,
+     cero KB de descarga. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* Escala tipográfica — 17px de cuerpo es el tamaño nativo de iOS */
+  --text-display: 2rem; /* 32px · precio en la ficha */
+  --text-display--line-height: 1.1;
+  --text-display--font-weight: 700;
+  --text-title: 1.375rem; /* 22px */
+  --text-title--line-height: 1.25;
+  --text-title--font-weight: 600;
+  --text-body: 1.0625rem; /* 17px */
+  --text-label: 0.9375rem; /* 15px */
+  --text-caption: 0.8125rem; /* 13px */
+
+  /* Radios */
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-sheet: 20px;
+
+  /* Colores de estado */
+  --color-status-available: #16a34a;
+  --color-status-reserved: #d97706;
+  --color-status-sold: #dc2626;
+  --color-status-hidden: #71717a;
+
+  /* Semánticos, resueltos abajo */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+
+  /* Movimiento: solo transiciones que expliquen de dónde viene algo */
+  --ease-out-quick: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root {
+  --bg: #ffffff;
+  --surface: #f8f9fc;
+  --line: #e6e8f0;
+  --ink: #0b0d17;
+  --muted: #6b7086;
+
+  /* Índigo eléctrico: el único color de marca, siempre el mismo tono. */
+  --accent: #4f46e5;
+  --accent-soft: #eef0fd;
+  --accent-ink: #ffffff;
+
+  /* Sombra muy suave para dar algo de profundidad sin perder la
+     sensación limpia — nada de sombras duras ni difusas. */
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.10);
+  --shadow-float: 0 12px 32px -8px rgb(79 70 229 / 0.35);
+
+  color-scheme: light;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* Evita el zoom automático de iOS al enfocar un input */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  /* Sin rebote horizontal en móvil */
+  overscroll-behavior-x: none;
+}
+
+/* El teclado numérico de iOS hace zoom si la fuente baja de 16px */
+input,
+textarea,
+select {
+  font-size: max(16px, 1rem);
+  font-family: inherit;
+}
+
+/* Foco visible solo con teclado: en móvil no molesta, en escritorio es
+   requisito de accesibilidad */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Utilidades de zona segura (iPhone con Face ID) ───────────────── */
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@utility pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Objetivo táctil mínimo de 44×44 pt. Sin excepciones.
+   El pequeño encogimiento al tocar es la única animación que se aplica
+   a TODA la app de una sola vez: confirma que el toque registró antes
+   de que pase nada más, en cualquier botón o enlace que use esta clase. */
+@utility tap {
+  min-height: 44px;
+  min-width: 44px;
+  transition: transform 0.15s var(--ease-out-quick);
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* Aparición suave de tarjetas y filas nuevas (resultados de búsqueda,
+   prendas que se agregan a una lista). */
+@utility enter {
+  animation: entrar 0.2s var(--ease-out-quick) both;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+/* Sombra de tarjeta: profundidad sutil para las prendas de la cuadrícula
+   y las tarjetas de estadísticas, sin volverse pesada. */
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+/* Sombra del botón flotante: un halo tenue del propio acento, para que
+   destaque sin depender de una sombra negra genérica. */
+@utility shadow-float {
+  box-shadow: var(--shadow-float);
+}

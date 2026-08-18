@@ -1,0 +1,27 @@
+{
+  "name": "percha",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gestión de inventario para tienda de ropa americana",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@percha/web",
+    "build": "npm run build --workspace=@percha/web",
+    "start": "npm run start --workspace=@percha/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && npm run test:db",
+    "db:push": "npx supabase db push",
+    "db:types": "npx supabase gen types typescript --linked > packages/core/src/types/database.ts",
+    "test:db": "vitest run --config vitest.config.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4"
+  }
+}
