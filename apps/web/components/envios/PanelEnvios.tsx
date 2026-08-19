@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { enviosValidos, formatDateTime } from '@percha/core';
+import { buildWhatsAppUrl, enviosValidos, formatDateTime } from '@percha/core';
 
 import { useToast, vibrar } from '@/components/Toast';
 import {
+  linkRegistrarPedido,
   listarEnviosPendientes,
   marcarLoteRegistrado,
   registrarLote,
@@ -108,8 +109,55 @@ export function PanelEnvios({
     router.refresh();
   }
 
+  async function copiarLinkRegistro() {
+    try {
+      await navigator.clipboard.writeText(linkRegistrarPedido(storeId));
+      mostrar('Link copiado');
+    } catch {
+      mostrar('No se pudo copiar');
+    }
+  }
+
+  function enviarLinkRegistroPorWhatsApp() {
+    const mensaje = [
+      'Hola 👋',
+      '',
+      'Para registrar tu pedido, completa este formulario (toma un minuto):',
+      linkRegistrarPedido(storeId),
+    ].join('\n');
+    window.open(buildWhatsAppUrl(mensaje), '_blank', 'noopener');
+  }
+
   return (
     <>
+      {agenciaOrigen && (
+        <section className="mb-4 rounded-[--radius-card] border border-line bg-surface p-4">
+          <h2 className="text-caption font-medium uppercase tracking-wide text-muted">
+            Link para que registren su pedido
+          </h2>
+          <p className="mt-1 text-label text-muted">
+            Un solo link para todos tus clientes: ponen sus datos, describen qué compraron y suben
+            una foto — no hace falta crear el pedido antes.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void copiarLinkRegistro()}
+              className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+            >
+              🔗 Copiar link
+            </button>
+            <button
+              type="button"
+              onClick={enviarLinkRegistroPorWhatsApp}
+              className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+            >
+              📤 Enviar por WhatsApp
+            </button>
+          </div>
+        </section>
+      )}
+
       {!agenciaOrigen && (
         <div className="mb-4 rounded-[--radius-card] border border-status-sold/40 bg-status-sold/10 p-4">
           <p className="font-medium">Falta tu agencia de origen</p>

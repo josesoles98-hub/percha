@@ -437,6 +437,14 @@ export function linkCompletarPedido(orderId: string): string {
 }
 
 /**
+ * Link único y fijo por tienda: el cliente registra su compra de punta a
+ * punta (nombre, datos, foto) sin que haya que crear el pedido antes.
+ */
+export function linkRegistrarPedido(storeId: string): string {
+  return `${getSiteUrl()}/registrar/${storeId}`;
+}
+
+/**
  * Fotos de referencia que subió el cliente por su link, para reconocer el
  * pedido al empacarlo — sobre todo útil con prendas que se vendieron
  * antes de subirlas al catálogo.

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
-const PUBLIC_PATHS = ['/login', '/auth', '/configurar', '/completar', '/demo'];
+const PUBLIC_PATHS = ['/login', '/auth', '/configurar', '/completar', '/registrar', '/demo'];
 
 /**
  * Refresca la sesión en cada petición y protege las rutas privadas.
