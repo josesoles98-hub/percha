@@ -7,7 +7,7 @@
  * `items_view` en la migración 0003.
  */
 
-import type { ItemStatus } from '../types/index.js';
+import type { ItemStatus } from '../types/index';
 
 /** Cuán urgente es una reserva. Define el color del indicador. */
 export type ReserveUrgency = 'expired' | 'today' | 'soon' | 'normal';

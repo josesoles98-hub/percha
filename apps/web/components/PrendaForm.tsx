@@ -10,6 +10,7 @@ import type { Catalogos } from '@/lib/data/inventory';
 import { actualizarPrenda, crearMarca, crearPrenda, sincronizarFotos } from '@/lib/data/mutations';
 import { idUnico } from '@/lib/id';
 import { createClient } from '@/lib/supabase/client';
+import { dispararGeneracionTryon } from '@/lib/tryon/models';
 
 import { PhotoPicker } from './PhotoPicker';
 import { useToast, vibrar } from './Toast';
@@ -235,6 +236,8 @@ export function PrendaForm({
       setGuardando(false);
       return;
     }
+
+    dispararGeneracionTryon(supabase, itemId);
 
     if (usaBorrador) localStorage.removeItem(BORRADOR_KEY);
     vibrar();

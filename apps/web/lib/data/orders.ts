@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DocType, EnvioParaExportar, PackageType } from '@percha/core';
 
+import { getSiteUrl } from '../env';
 import { firmarFotos } from './inventory';
 import type { Resultado } from './mutations';
 
@@ -200,13 +201,14 @@ export interface Pedido extends PedidoResumen {
   notes: string | null;
   items: Array<{ itemId: string; code: string; name: string | null; priceCents: number }>;
   envio: Envio | null;
+  customerDataSubmittedAt: string | null;
 }
 
 export interface Envio {
   id: string;
   originAgencyId: number;
   originAgencyName: string | null;
-  destinyAgencyId: number;
+  destinyAgencyId: number | null;
   destinyAgencyName: string | null;
   packageType: PackageType;
   packagesCount: number;
@@ -217,7 +219,7 @@ export interface Envio {
 
 const COLUMNAS_PEDIDO = `
   id, code, status, subtotal_cents, shipping_cents, total_cents, paid_cents,
-  notes, created_at, customer_id,
+  notes, created_at, customer_id, customer_data_submitted_at,
   customers ( id, full_name, doc_type, doc_number, phone, default_agency_id,
               orders_count, total_spent_cents ),
   order_items ( item_id, price_cents, items ( code, name ) ),
@@ -236,8 +238,10 @@ function mapPedido(fila: Record<string, unknown>, agencias: Map<number, string>)
         id: envioCrudo.id as string,
         originAgencyId: envioCrudo.origin_agency_id as number,
         originAgencyName: agencias.get(envioCrudo.origin_agency_id as number) ?? null,
-        destinyAgencyId: envioCrudo.destiny_agency_id as number,
-        destinyAgencyName: agencias.get(envioCrudo.destiny_agency_id as number) ?? null,
+        destinyAgencyId: (envioCrudo.destiny_agency_id as number | null) ?? null,
+        destinyAgencyName: envioCrudo.destiny_agency_id
+          ? agencias.get(envioCrudo.destiny_agency_id as number) ?? null
+          : null,
         packageType: envioCrudo.package_type as PackageType,
         packagesCount: envioCrudo.packages_count as number,
         status: envioCrudo.status as string,
@@ -272,6 +276,7 @@ function mapPedido(fila: Record<string, unknown>, agencias: Map<number, string>)
       };
     }),
     envio,
+    customerDataSubmittedAt: (fila.customer_data_submitted_at as string) ?? null,
     destinyAgencyName: envio?.destinyAgencyName ?? null,
     shipmentStatus: envio?.status ?? null,
   };
@@ -419,10 +424,36 @@ export interface NuevoPedido {
   notes?: string | null;
   envio: {
     originAgencyId: number;
-    destinyAgencyId: number;
+    /** Puede faltar todavía si el cliente la va a elegir por su link. */
+    destinyAgencyId: number | null;
     packageType: PackageType;
     packagesCount: number;
   };
+}
+
+/** Link para que el cliente complete sus datos de envío (ver migración 0013). */
+export function linkCompletarPedido(orderId: string): string {
+  return `${getSiteUrl()}/completar/${orderId}`;
+}
+
+/**
+ * Fotos de referencia que subió el cliente por su link, para reconocer el
+ * pedido al empacarlo — sobre todo útil con prendas que se vendieron
+ * antes de subirlas al catálogo.
+ */
+export async function listarFotosPedido(
+  supabase: SupabaseClient,
+  storeId: string,
+  orderId: string,
+): Promise<string[]> {
+  const { data } = await supabase.storage.from('order-photos').list(`${storeId}/${orderId}`, {
+    sortBy: { column: 'name', order: 'asc' },
+  });
+  const rutas = (data ?? []).filter((f) => f.id).map((f) => `${storeId}/${orderId}/${f.name}`);
+  if (rutas.length === 0) return [];
+
+  const { data: firmadas } = await supabase.storage.from('order-photos').createSignedUrls(rutas, 3600);
+  return (firmadas ?? []).filter((u) => u.signedUrl).map((u) => u.signedUrl as string);
 }
 
 /**

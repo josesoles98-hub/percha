@@ -8,8 +8,8 @@
  * "Marca: " suelto, y eso se envía a un grupo de clientes reales.
  */
 
-import { formatMoney } from '../format/money.js';
-import { GENDER_META, STATUS_META, type Item, type StoreSettings } from '../types/index.js';
+import { formatMoney } from '../format/money';
+import { GENDER_META, STATUS_META, type Item, type StoreSettings } from '../types/index';
 
 /**
  * El mensaje recomendado: marca, talla y precio.

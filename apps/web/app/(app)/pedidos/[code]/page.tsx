@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { FichaPedido } from '@/components/envios/FichaPedido';
 import { getMembresia } from '@/lib/data/inventory';
-import { getPedido } from '@/lib/data/orders';
+import { getPedido, listarFotosPedido } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -17,5 +17,9 @@ export default async function PedidoPage({ params }: { params: Promise<{ code: s
   const pedido = await getPedido(supabase, membresia.storeId, code);
   if (!pedido) notFound();
 
-  return <FichaPedido pedido={pedido} store={membresia.store} />;
+  const fotosCliente = pedido.customerDataSubmittedAt
+    ? await listarFotosPedido(supabase, membresia.storeId, pedido.id)
+    : [];
+
+  return <FichaPedido pedido={pedido} store={membresia.store} fotosCliente={fotosCliente} />;
 }

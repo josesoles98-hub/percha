@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { buildWhatsAppUrl, formatDateTime, formatMoney, type StoreSettings } from '@percha/core';
 
 import { useToast, vibrar } from '@/components/Toast';
-import { cambiarEstadoPedido, type EstadoPedido, type Pedido } from '@/lib/data/orders';
+import { cambiarEstadoPedido, linkCompletarPedido, type EstadoPedido, type Pedido } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/client';
 
 const ETIQUETA: Record<EstadoPedido, string> = {
@@ -27,13 +27,46 @@ const SIGUIENTES: Record<EstadoPedido, EstadoPedido[]> = {
   cancelled: ['draft'],
 };
 
-export function FichaPedido({ pedido, store }: { pedido: Pedido; store: StoreSettings }) {
+export function FichaPedido({
+  pedido,
+  store,
+  fotosCliente,
+}: {
+  pedido: Pedido;
+  store: StoreSettings;
+  fotosCliente: string[];
+}) {
   const router = useRouter();
   const { mostrar } = useToast();
   const [ocupado, setOcupado] = useState(false);
 
   const simbolo = store.currencySymbol;
   const dinero = (cents: number) => formatMoney(cents, { symbol: simbolo });
+
+  const faltanDatosEnvio =
+    !pedido.customer?.docNumber || !pedido.customer?.phone || !pedido.envio?.destinyAgencyId;
+
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(linkCompletarPedido(pedido.id));
+      mostrar('Link copiado');
+    } catch {
+      mostrar('No se pudo copiar');
+    }
+  }
+
+  function enviarLinkPorWhatsApp() {
+    const lineas = [
+      `Hola ${pedido.customerName.split(' ')[0] ?? ''} 👋`,
+      '',
+      `Para enviarte tu pedido ${pedido.code} necesito unos datos tuyos.`,
+      'Complétalos acá (toma un minuto):',
+      linkCompletarPedido(pedido.id),
+      '',
+      `— ${store.name}`,
+    ];
+    window.open(buildWhatsAppUrl(lineas.join('\n'), pedido.customer?.phone ?? undefined), '_blank', 'noopener');
+  }
 
   async function cambiar(estado: EstadoPedido) {
     if (estado === 'cancelled' && !confirm('¿Cancelar el pedido? Las prendas vuelven al inventario.')) {
@@ -102,6 +135,57 @@ export function FichaPedido({ pedido, store }: { pedido: Pedido; store: StoreSet
           <p className="text-label text-muted">{pedido.customer.phone}</p>
         )}
       </section>
+
+      {/* ── Link para que el cliente complete sus datos ────────────────── */}
+      {pedido.status !== 'cancelled' && (faltanDatosEnvio || pedido.customerDataSubmittedAt) && (
+        <section className="mt-4 rounded-[--radius-card] border border-line bg-surface p-4">
+          {pedido.customerDataSubmittedAt ? (
+            <>
+              <p className="text-label">
+                ✅ El cliente completó sus datos el {formatDateTime(pedido.customerDataSubmittedAt)}
+              </p>
+              {fotosCliente.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {fotosCliente.map((url) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={url}
+                      src={url}
+                      alt="Foto de referencia del cliente"
+                      className="aspect-[3/4] w-20 rounded-[--radius-card] object-cover"
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className="text-caption font-medium uppercase tracking-wide text-muted">
+                Faltan datos de envío
+              </h2>
+              <p className="mt-1 text-label text-muted">
+                Mándale al cliente este link para que ponga su documento, teléfono y agencia.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copiarLink()}
+                  className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+                >
+                  🔗 Copiar link
+                </button>
+                <button
+                  type="button"
+                  onClick={enviarLinkPorWhatsApp}
+                  className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+                >
+                  📤 Enviar por WhatsApp
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {/* ── Prendas ─────────────────────────────────────────────────── */}
       <section className="mt-4">

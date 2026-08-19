@@ -165,18 +165,15 @@ export function NuevoPedidoForm({
     }
   }
 
+  // Documento, teléfono y agencia ya no son obligatorios acá: si no los
+  // tiene a mano, puede crear el pedido igual y mandarle al cliente el
+  // link para que los complete él mismo (ver FichaPedido). Si escribe un
+  // documento, eso sí tiene que estar bien formado.
   const errorDoc = documento.trim() ? validarDocumento(tipoDoc, documento) : null;
-  const puedeGuardar =
-    nombre.trim() !== '' &&
-    telefono.trim() !== '' &&
-    documento.trim() !== '' &&
-    !errorDoc &&
-    destino !== null &&
-    origenId !== null &&
-    !guardando;
+  const puedeGuardar = nombre.trim() !== '' && !errorDoc && origenId !== null && !guardando;
 
   async function guardar() {
-    if (!puedeGuardar || !destino || origenId === null) return;
+    if (!puedeGuardar || origenId === null) return;
 
     setGuardando(true);
     setError(null);
@@ -191,7 +188,7 @@ export function NuevoPedidoForm({
         docType: tipoDoc,
         docNumber: documento,
         phone: telefono,
-        defaultAgencyId: destino.id,
+        defaultAgencyId: destino?.id ?? null,
       });
 
       if (!data) {
@@ -209,7 +206,7 @@ export function NuevoPedidoForm({
       precios: Object.fromEntries(prendas.map((p) => [p.id, p.priceCents])),
       envio: {
         originAgencyId: origenId,
-        destinyAgencyId: destino.id,
+        destinyAgencyId: destino?.id ?? null,
         packageType: paquete,
         packagesCount: bultos,
       },
@@ -294,6 +291,10 @@ export function NuevoPedidoForm({
         {/* ── Cliente ─────────────────────────────────────────────── */}
         <section className="space-y-3">
           <h2 className="text-label font-medium">Cliente</h2>
+          <p className="-mt-2 text-caption text-muted">
+            Si no tienes teléfono, documento o agencia todavía, déjalos en blanco: al crear el
+            pedido puedes mandarle al cliente un link para que los complete él mismo.
+          </p>
 
           {clienteElegido && (
             <p className="rounded-[--radius-control] bg-surface px-3 py-2 text-label">

@@ -9,6 +9,7 @@ import type { Catalogos } from '@/lib/data/inventory';
 import { crearMarca, crearPrenda } from '@/lib/data/mutations';
 import { idUnico } from '@/lib/id';
 import { createClient } from '@/lib/supabase/client';
+import { dispararGeneracionTryon } from '@/lib/tryon/models';
 
 import { useToast, vibrar } from './Toast';
 
@@ -260,6 +261,8 @@ function TarjetaCargaRapida({
       mostrar(error ?? 'No se pudo guardar');
       return;
     }
+
+    dispararGeneracionTryon(supabase, grupo.id);
 
     vibrar();
     mostrar(`${data.code} guardada`);

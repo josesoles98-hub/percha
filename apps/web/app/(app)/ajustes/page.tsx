@@ -81,6 +81,10 @@ export default async function AjustesPage() {
         />
       </Seccion>
 
+      <Seccion titulo="Try-on automático">
+        <Fila href="/ajustes/modelos-tryon" icono="🧍" etiqueta="Fotos de modelos" />
+      </Seccion>
+
       <div className="mt-3">
         <ExportarCsv storeId={storeId} store={store} />
       </div>
