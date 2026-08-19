@@ -161,6 +161,8 @@ export function CompletarForm({
   if (enviado || datos.yaCompletado) {
     return (
       <Centro>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-tienda.jpg" alt={datos.storeName} className="mb-6 w-full max-w-56 rounded-[--radius-card]" />
         <div className="text-5xl" aria-hidden>
           ✅
         </div>
@@ -174,9 +176,12 @@ export function CompletarForm({
 
   return (
     <div className="mx-auto max-w-md px-4 pb-10 pt-safe">
-      <header className="py-6 text-center">
-        <p className="text-caption text-muted">{datos.storeName}</p>
-        <h1 className="text-title">Pedido {datos.code}</h1>
+      <header className="pb-2 pt-6 text-center">
+        <div className="mx-auto flex justify-center rounded-[--radius-card] bg-black px-6 py-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-tienda.jpg" alt={datos.storeName} className="h-auto w-full max-w-64" />
+        </div>
+        <h1 className="mt-5 text-title tracking-tight">Pedido {datos.code}</h1>
         <p className="mt-1 text-label text-muted">
           Completa tus datos para que podamos enviarte tu pedido.
         </p>

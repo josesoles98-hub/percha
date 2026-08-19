@@ -136,6 +136,8 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
   if (codigo) {
     return (
       <Centro>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-tienda.jpg" alt={datos.storeName} className="mb-6 w-full max-w-56 rounded-[--radius-card]" />
         <div className="text-5xl" aria-hidden>
           ✅
         </div>
@@ -150,9 +152,12 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
 
   return (
     <div className="mx-auto max-w-md px-4 pb-10 pt-safe">
-      <header className="py-6 text-center">
-        <p className="text-caption text-muted">{datos.storeName}</p>
-        <h1 className="text-title">Registra tu pedido</h1>
+      <header className="pb-2 pt-6 text-center">
+        <div className="mx-auto flex justify-center rounded-[--radius-card] bg-black px-6 py-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-tienda.jpg" alt={datos.storeName} className="h-auto w-full max-w-64" />
+        </div>
+        <h1 className="mt-5 text-title tracking-tight">Registra tu pedido</h1>
         <p className="mt-1 text-label text-muted">
           Pon tus datos y sube una foto de lo que compraste, para poder enviártelo.
         </p>
