@@ -137,53 +137,53 @@ export function FichaPedido({
       </section>
 
       {/* ── Link para que el cliente complete sus datos ────────────────── */}
-      {pedido.status !== 'cancelled' && (faltanDatosEnvio || pedido.customerDataSubmittedAt) && (
+      {pedido.status !== 'cancelled' && (
         <section className="mt-4 rounded-[--radius-card] border border-line bg-surface p-4">
-          {pedido.customerDataSubmittedAt ? (
-            <>
-              <p className="text-label">
-                ✅ El cliente completó sus datos el {formatDateTime(pedido.customerDataSubmittedAt)}
-              </p>
-              {fotosCliente.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {fotosCliente.map((url) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={url}
-                      src={url}
-                      alt="Foto de referencia del cliente"
-                      className="aspect-[3/4] w-20 rounded-[--radius-card] object-cover"
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <h2 className="text-caption font-medium uppercase tracking-wide text-muted">
-                Faltan datos de envío
-              </h2>
-              <p className="mt-1 text-label text-muted">
-                Mándale al cliente este link para que ponga su documento, teléfono y agencia.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void copiarLink()}
-                  className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
-                >
-                  🔗 Copiar link
-                </button>
-                <button
-                  type="button"
-                  onClick={enviarLinkPorWhatsApp}
-                  className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
-                >
-                  📤 Enviar por WhatsApp
-                </button>
-              </div>
-            </>
+          <h2 className="text-caption font-medium uppercase tracking-wide text-muted">
+            Link para el cliente
+          </h2>
+
+          {pedido.customerDataSubmittedAt && (
+            <p className="mt-1 text-label">
+              ✅ El cliente completó sus datos el {formatDateTime(pedido.customerDataSubmittedAt)}
+            </p>
           )}
+
+          {fotosCliente.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {fotosCliente.map((url) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={url}
+                  src={url}
+                  alt="Foto de referencia del cliente"
+                  className="aspect-[3/4] w-20 rounded-[--radius-card] object-cover"
+                />
+              ))}
+            </div>
+          )}
+
+          <p className="mt-1 text-label text-muted">
+            {faltanDatosEnvio
+              ? 'Mándale este link para que ponga su documento, teléfono y agencia.'
+              : 'Mándale este link si necesita cambiar algún dato o agregar una foto.'}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void copiarLink()}
+              className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+            >
+              🔗 Copiar link
+            </button>
+            <button
+              type="button"
+              onClick={enviarLinkPorWhatsApp}
+              className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+            >
+              📤 Enviar por WhatsApp
+            </button>
+          </div>
         </section>
       )}
 
