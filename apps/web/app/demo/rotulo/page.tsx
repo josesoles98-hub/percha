@@ -59,6 +59,7 @@ const PEDIDO_DEMO: Pedido = {
     exportBatchId: null,
   },
   customerDataSubmittedAt: null,
+  packedAt: null,
 };
 
 export default function DemoRotuloPage() {

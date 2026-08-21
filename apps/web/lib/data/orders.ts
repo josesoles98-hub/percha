@@ -190,6 +190,8 @@ export interface PedidoResumen {
   prendas: number;
   destinyAgencyName: string | null;
   shipmentStatus: string | null;
+  /** Tache aparte de "empacado": no toca el status real del pedido. */
+  packedAt: string | null;
 }
 
 export interface Pedido extends PedidoResumen {
@@ -219,7 +221,7 @@ export interface Envio {
 
 const COLUMNAS_PEDIDO = `
   id, code, status, subtotal_cents, shipping_cents, total_cents, paid_cents,
-  notes, created_at, customer_id, customer_data_submitted_at,
+  notes, created_at, customer_id, customer_data_submitted_at, packed_at,
   customers ( id, full_name, doc_type, doc_number, phone, default_agency_id,
               orders_count, total_spent_cents ),
   order_items ( item_id, price_cents, items ( code, name ) ),
@@ -279,6 +281,7 @@ function mapPedido(fila: Record<string, unknown>, agencias: Map<number, string>)
     customerDataSubmittedAt: (fila.customer_data_submitted_at as string) ?? null,
     destinyAgencyName: envio?.destinyAgencyName ?? null,
     shipmentStatus: envio?.status ?? null,
+    packedAt: (fila.packed_at as string) ?? null,
   };
 }
 
@@ -572,6 +575,31 @@ export async function cambiarEstadoPedido(
   status: EstadoPedido,
 ): Promise<Resultado<null>> {
   const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+  return { data: null, error: error?.message ?? null };
+}
+
+/**
+ * Marca/desmarca "empacado". Es independiente del status del pedido a
+ * propósito: no toca prendas ni estadísticas del cliente, así que se
+ * puede usar en cualquier pedido sin importar en qué paso del flujo real
+ * de venta esté.
+ */
+export async function marcarEmpacado(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<Resultado<null>> {
+  const { error } = await supabase
+    .from('orders')
+    .update({ packed_at: new Date().toISOString() })
+    .eq('id', id);
+  return { data: null, error: error?.message ?? null };
+}
+
+export async function desmarcarEmpacado(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<Resultado<null>> {
+  const { error } = await supabase.from('orders').update({ packed_at: null }).eq('id', id);
   return { data: null, error: error?.message ?? null };
 }
 
