@@ -534,6 +534,20 @@ export async function cambiarEstadoPedido(
   return { data: null, error: error?.message ?? null };
 }
 
+/**
+ * Borra un pedido de prueba. Solo tiene sentido para pedidos que nunca se
+ * confirmaron ('draft' o 'cancelled'): uno confirmado ya movió prendas a
+ * vendidas y estadísticas del cliente, y borrarlo dejaría esos datos
+ * descuadrados. Envíos y prendas del pedido se borran solos en cascada.
+ */
+export async function borrarPedido(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<Resultado<null>> {
+  const { error } = await supabase.from('orders').delete().eq('id', id);
+  return { data: null, error: error?.message ?? null };
+}
+
 // ── Envíos pendientes de exportar ─────────────────────────────────────
 
 export interface EnvioPendiente extends EnvioParaExportar {

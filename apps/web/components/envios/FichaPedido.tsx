@@ -6,7 +6,13 @@ import { useState } from 'react';
 import { buildWhatsAppUrl, formatDateTime, formatMoney, type StoreSettings } from '@percha/core';
 
 import { useToast, vibrar } from '@/components/Toast';
-import { cambiarEstadoPedido, linkCompletarPedido, type EstadoPedido, type Pedido } from '@/lib/data/orders';
+import {
+  borrarPedido,
+  cambiarEstadoPedido,
+  linkCompletarPedido,
+  type EstadoPedido,
+  type Pedido,
+} from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/client';
 
 const ETIQUETA: Record<EstadoPedido, string> = {
@@ -84,6 +90,24 @@ export function FichaPedido({
 
     vibrar();
     mostrar(ETIQUETA[estado]);
+    router.refresh();
+  }
+
+  async function borrar() {
+    if (!confirm(`¿Borrar el pedido ${pedido.code}? Esto no se puede deshacer.`)) return;
+
+    setOcupado(true);
+    const { error } = await borrarPedido(createClient(), pedido.id);
+    setOcupado(false);
+
+    if (error) {
+      mostrar('No se pudo borrar');
+      return;
+    }
+
+    vibrar();
+    mostrar('Pedido borrado');
+    router.push('/pedidos');
     router.refresh();
   }
 
@@ -290,6 +314,17 @@ export function FichaPedido({
             className="tap w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 font-medium"
           >
             📤 Avisar al cliente por WhatsApp
+          </button>
+        )}
+
+        {(pedido.status === 'draft' || pedido.status === 'cancelled') && (
+          <button
+            type="button"
+            onClick={() => void borrar()}
+            disabled={ocupado}
+            className="tap w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 font-medium text-status-sold disabled:opacity-40"
+          >
+            🗑 Borrar pedido
           </button>
         )}
       </section>
