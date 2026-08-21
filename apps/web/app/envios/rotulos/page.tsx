@@ -19,5 +19,5 @@ export default async function RotulosBatchPage() {
 
   const envios = await listarEnviosPendientes(supabase, membresia.storeId);
 
-  return <RotulosBatch envios={envios} storeName={membresia.store.name} />;
+  return <RotulosBatch envios={envios} />;
 }

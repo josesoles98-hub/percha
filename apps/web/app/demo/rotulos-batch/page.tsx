@@ -24,6 +24,7 @@ const ENVIOS_DEMO: EnvioPendiente[] = [
     contactDoc: null,
     contactPhone: null,
     grrNumber: null,
+    labelPrintedAt: new Date().toISOString(),
   },
   {
     id: '2',
@@ -45,9 +46,10 @@ const ENVIOS_DEMO: EnvioPendiente[] = [
     contactDoc: null,
     contactPhone: null,
     grrNumber: null,
+    labelPrintedAt: null,
   },
 ];
 
 export default function DemoRotulosBatchPage() {
-  return <RotulosBatch envios={ENVIOS_DEMO} storeName="American Vintage Club" />;
+  return <RotulosBatch envios={ENVIOS_DEMO} />;
 }

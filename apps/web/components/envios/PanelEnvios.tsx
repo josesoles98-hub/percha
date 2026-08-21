@@ -211,12 +211,19 @@ export function PanelEnvios({
                   key={envio.id}
                   className={`rounded-[--radius-card] border p-4 ${
                     correcto ? 'border-line bg-surface' : 'border-status-reserved/50 bg-status-reserved/10'
-                  }`}
+                  } ${envio.labelPrintedAt ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     <span aria-hidden>{correcto ? '✓' : '⚠️'}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium">{envio.orderCode}</p>
+                      <p className="font-medium">
+                        {envio.orderCode}
+                        {envio.labelPrintedAt && (
+                          <span className="ml-2 text-caption font-normal text-status-available">
+                            🏷️ Impreso
+                          </span>
+                        )}
+                      </p>
                       <p className="text-label text-muted">
                         {envio.customerName || 'Sin nombre'}
                         {envio.docNumber ? ` · ${envio.docNumber}` : ''}

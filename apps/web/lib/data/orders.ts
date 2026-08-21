@@ -594,6 +594,7 @@ export async function borrarPedido(
 export interface EnvioPendiente extends EnvioParaExportar {
   shipmentId: string;
   orderId: string;
+  labelPrintedAt: string | null;
 }
 
 /**
@@ -609,7 +610,7 @@ export async function listarEnviosPendientes(
     .select(`
       id, order_id, origin_agency_id, destiny_agency_id, package_type,
       height_cm, width_cm, length_cm, weight_kg, packages_count,
-      contact_doc, contact_phone, grr_number,
+      contact_doc, contact_phone, grr_number, label_printed_at,
       orders!inner ( code, customers ( full_name, doc_type, doc_number, phone ) )
     `)
     .eq('store_id', storeId)
@@ -648,8 +649,24 @@ export async function listarEnviosPendientes(
       contactDoc: (f.contact_doc as string) ?? null,
       contactPhone: (f.contact_phone as string) ?? null,
       grrNumber: (f.grr_number as string) ?? null,
+      labelPrintedAt: (f.label_printed_at as string) ?? null,
     };
   });
+}
+
+/** Marca uno o varios envíos como "rótulo ya impreso". */
+export async function marcarRotuloImpreso(
+  supabase: SupabaseClient,
+  shipmentIds: string[],
+): Promise<Resultado<null>> {
+  if (shipmentIds.length === 0) return { data: null, error: null };
+
+  const { error } = await supabase
+    .from('shipments')
+    .update({ label_printed_at: new Date().toISOString() })
+    .in('id', shipmentIds);
+
+  return { data: null, error: error?.message ?? null };
 }
 
 /**
