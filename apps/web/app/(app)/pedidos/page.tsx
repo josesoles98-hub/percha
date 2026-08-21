@@ -1,22 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { formatMoney, formatShortDate } from '@percha/core';
 
 import { ExportarPedidosCsv } from '@/components/envios/ExportarPedidosCsv';
+import { PedidosLista } from '@/components/envios/PedidosLista';
 import { getMembresia } from '@/lib/data/inventory';
-import { listarPedidos, type EstadoPedido } from '@/lib/data/orders';
+import { listarPedidos } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
-
-const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
-  draft: '📝 Borrador',
-  confirmed: '✅ Confirmado',
-  packed: '📦 Empacado',
-  shipped: '🚚 Enviado',
-  delivered: '🏠 Entregado',
-  cancelled: '✖️ Cancelado',
-};
 
 export default async function PedidosPage() {
   const supabase = await createClient();
@@ -51,30 +42,7 @@ export default async function PedidosPage() {
           </p>
         </section>
       ) : (
-        <ul className="space-y-2 pb-8">
-          {pedidos.map((pedido) => (
-            <li key={pedido.id}>
-              <Link
-                href={`/pedidos/${pedido.code}`}
-                className="block rounded-[--radius-card] border border-line bg-surface p-4"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-medium">{pedido.code}</p>
-                  <p className="font-semibold tabular-nums">
-                    {formatMoney(pedido.totalCents, { symbol: simbolo })}
-                  </p>
-                </div>
-                <p className="mt-0.5 truncate text-label text-muted">{pedido.customerName}</p>
-                <p className="mt-0.5 text-caption text-muted">
-                  {ETIQUETA_ESTADO[pedido.status]} · {pedido.prendas}{' '}
-                  {pedido.prendas === 1 ? 'prenda' : 'prendas'}
-                  {pedido.destinyAgencyName ? ` · → ${pedido.destinyAgencyName}` : ''} ·{' '}
-                  {formatShortDate(pedido.createdAt)}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <PedidosLista pedidos={pedidos} simbolo={simbolo} />
       )}
     </main>
   );
