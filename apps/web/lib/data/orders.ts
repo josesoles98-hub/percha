@@ -323,6 +323,47 @@ export async function listarPedidos(
   return filas.map((f) => mapPedido(f, agencias));
 }
 
+const POR_PAGINA_EXPORTAR = 500;
+
+/**
+ * Todos los pedidos, sin el límite de 100 de listarPedidos: es para la
+ * descarga completa, así que no puede quedarse corta con una tienda que
+ * ya acumuló cientos de pedidos.
+ */
+export async function listarTodosLosPedidos(
+  supabase: SupabaseClient,
+  storeId: string,
+): Promise<PedidoResumen[]> {
+  const todos: PedidoResumen[] = [];
+  let desde = 0;
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(COLUMNAS_PEDIDO)
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .range(desde, desde + POR_PAGINA_EXPORTAR - 1);
+
+    if (error) throw new Error(`No se pudieron cargar los pedidos: ${error.message}`);
+
+    const filas = (data ?? []) as Array<Record<string, unknown>>;
+    const idsAgencias = filas.flatMap((f) =>
+      ((f.shipments ?? []) as Array<Record<string, unknown>>).flatMap((e) => [
+        e.origin_agency_id as number,
+        e.destiny_agency_id as number,
+      ]),
+    );
+    const agencias = await nombresDeAgencias(supabase, idsAgencias);
+    todos.push(...filas.map((f) => mapPedido(f, agencias)));
+
+    if (filas.length < POR_PAGINA_EXPORTAR) break;
+    desde += POR_PAGINA_EXPORTAR;
+  }
+
+  return todos;
+}
+
 export async function getPedido(
   supabase: SupabaseClient,
   storeId: string,
@@ -688,4 +729,93 @@ export async function marcarLoteRegistrado(
     .eq('export_batch_id', loteId);
 
   return { data: null, error: errorEnvios?.message ?? null };
+}
+
+// ── Lista de empaque ────────────────────────────────────────────────────
+
+export interface PrendaEmpaque {
+  code: string;
+  name: string | null;
+  sizeLabel: string | null;
+  photoUrl: string | null;
+}
+
+export interface PedidoEmpaque {
+  orderId: string;
+  orderCode: string;
+  customerName: string;
+  prendas: PrendaEmpaque[];
+}
+
+/**
+ * Pedidos pendientes de envío con la foto y el nombre de cada prenda, para
+ * reconocerlas rápido al empacar — sobre todo útil cuando hay varios
+ * pedidos abiertos con prendas parecidas.
+ */
+export async function listarPedidosParaEmpacar(
+  supabase: SupabaseClient,
+  storeId: string,
+): Promise<PedidoEmpaque[]> {
+  const { data, error } = await supabase
+    .from('shipments')
+    .select(`
+      order_id,
+      orders!inner (
+        code,
+        customers ( full_name ),
+        order_items (
+          items (
+            code, name,
+            sizes ( label ),
+            item_photos ( storage_path, position )
+          )
+        )
+      )
+    `)
+    .eq('store_id', storeId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(`No se pudieron cargar los pedidos: ${error.message}`);
+
+  const filas = (data ?? []) as Array<Record<string, unknown>>;
+
+  // Firmar todas las fotos de una sola vez, no una llamada por prenda.
+  const rutas: string[] = [];
+  for (const fila of filas) {
+    const pedido = fila.orders as Record<string, unknown>;
+    const lineas = (pedido.order_items ?? []) as Array<Record<string, unknown>>;
+    for (const linea of lineas) {
+      const prenda = linea.items as Record<string, unknown> | null;
+      const fotos = (prenda?.item_photos ?? []) as Array<{ storage_path: string; position: number }>;
+      const foto1 = fotos.find((f) => f.position === 1);
+      if (foto1) rutas.push(foto1.storage_path);
+    }
+  }
+  const firmadas = await firmarFotos(supabase, rutas);
+
+  return filas.map((fila) => {
+    const pedido = fila.orders as Record<string, unknown>;
+    const cliente = pedido.customers as { full_name: string } | null;
+    const lineas = (pedido.order_items ?? []) as Array<Record<string, unknown>>;
+
+    return {
+      orderId: fila.order_id as string,
+      orderCode: pedido.code as string,
+      customerName: cliente?.full_name ?? '',
+      prendas: lineas.map((linea) => {
+        const prenda = linea.items as Record<string, unknown> | null;
+        const talla = prenda?.sizes as { label: string } | null;
+        const fotos = (prenda?.item_photos ?? []) as Array<{ storage_path: string; position: number }>;
+        const foto1 = fotos.find((f) => f.position === 1);
+
+        return {
+          code: (prenda?.code as string) ?? '',
+          name: (prenda?.name as string) ?? null,
+          sizeLabel: talla?.label ?? null,
+          photoUrl: foto1 ? firmadas.get(foto1.storage_path) ?? null : null,
+        };
+      }),
+    };
+  });
 }

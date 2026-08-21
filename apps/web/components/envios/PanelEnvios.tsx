@@ -174,9 +174,21 @@ export function PanelEnvios({
       )}
 
       <section>
-        <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
-          Pendientes de registrar ({pendientes.length})
-        </h2>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-caption font-medium uppercase tracking-wide text-muted">
+            Pendientes de registrar ({pendientes.length})
+          </h2>
+          {pendientes.length > 0 && (
+            <div className="flex shrink-0 gap-3">
+              <Link href="/envios/rotulos" className="tap text-caption underline underline-offset-4">
+                🏷️ Rótulos
+              </Link>
+              <Link href="/envios/empaque" className="tap text-caption underline underline-offset-4">
+                📦 Empaque
+              </Link>
+            </div>
+          )}
+        </div>
 
         {pendientes.length === 0 ? (
           <div className="rounded-[--radius-card] border border-line bg-surface p-6 text-center">

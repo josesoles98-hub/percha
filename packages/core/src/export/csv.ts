@@ -87,6 +87,62 @@ export function inventarioACsv(items: readonly Item[], store: StoreSettings): st
   return lineas.join('\r\n');
 }
 
+export interface PedidoParaCsv {
+  code: string;
+  statusLabel: string;
+  customerName: string;
+  prendas: number;
+  totalCents: number;
+  destinyAgencyName: string | null;
+  createdAt: string;
+}
+
+export const COLUMNAS_PEDIDOS = [
+  'Código',
+  'Estado',
+  'Cliente',
+  'Prendas',
+  'Total',
+  'Destino',
+  'Fecha',
+] as const;
+
+/** Convierte la lista de pedidos en CSV, igual que inventarioACsv. */
+export function pedidosACsv(pedidos: readonly PedidoParaCsv[], store: StoreSettings): string {
+  const lineas = [filaCsv([...COLUMNAS_PEDIDOS])];
+
+  for (const pedido of pedidos) {
+    lineas.push(
+      filaCsv([
+        pedido.code,
+        pedido.statusLabel,
+        pedido.customerName,
+        pedido.prendas,
+        formatMoney(pedido.totalCents, { symbol: store.currencySymbol }),
+        pedido.destinyAgencyName,
+        soloFecha(pedido.createdAt),
+      ]),
+    );
+  }
+
+  return lineas.join('\r\n');
+}
+
+function nombreLimpio(nombreTienda: string): string {
+  return nombreTienda
+    .normalize('NFD')
+    // Escapado explícito: el rango de tildes son caracteres combinantes
+    // invisibles, y escritos literales cualquier editor los puede comer.
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
+export function nombreArchivoCsvPedidos(nombreTienda: string, fecha: Date = new Date()): string {
+  return `pedidos-${nombreLimpio(nombreTienda) || 'tienda'}-${fecha.toISOString().slice(0, 10)}.csv`;
+}
+
 /**
  * Marca de orden de bytes.
  *
@@ -97,14 +153,7 @@ export function inventarioACsv(items: readonly Item[], store: StoreSettings): st
 export const BOM_UTF8 = '﻿';
 
 export function nombreArchivoCsv(nombreTienda: string, fecha: Date = new Date()): string {
-  const limpio = nombreTienda
-    .normalize('NFD')
-    // Escapado explícito: el rango de tildes son caracteres combinantes
-    // invisibles, y escritos literales cualquier editor los puede comer.
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
+  const limpio = nombreLimpio(nombreTienda);
 
   return `${limpio || 'inventario'}-${fecha.toISOString().slice(0, 10)}.csv`;
 }

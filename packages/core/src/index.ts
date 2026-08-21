@@ -91,10 +91,14 @@ export type {
 export {
   BOM_UTF8,
   COLUMNAS_INVENTARIO,
+  COLUMNAS_PEDIDOS,
   escaparCsv,
   filaCsv,
   inventarioACsv,
   nombreArchivoCsv,
+  nombreArchivoCsvPedidos,
+  pedidosACsv,
+  type PedidoParaCsv,
 } from './export/csv';
 
 // ── Validación ────────────────────────────────────────────────────────
