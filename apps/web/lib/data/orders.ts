@@ -669,6 +669,19 @@ export async function marcarRotuloImpreso(
   return { data: null, error: error?.message ?? null };
 }
 
+/** Deshace la marca de "ya impreso", para cuando se tocó por error. */
+export async function desmarcarRotuloImpreso(
+  supabase: SupabaseClient,
+  shipmentId: string,
+): Promise<Resultado<null>> {
+  const { error } = await supabase
+    .from('shipments')
+    .update({ label_printed_at: null })
+    .eq('id', shipmentId);
+
+  return { data: null, error: error?.message ?? null };
+}
+
 /**
  * Deja constancia del lote generado y marca sus envíos como exportados.
  *

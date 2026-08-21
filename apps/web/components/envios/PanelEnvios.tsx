@@ -7,9 +7,11 @@ import { buildWhatsAppUrl, enviosValidos, formatDateTime } from '@percha/core';
 
 import { useToast, vibrar } from '@/components/Toast';
 import {
+  desmarcarRotuloImpreso,
   linkRegistrarPedido,
   listarEnviosPendientes,
   marcarLoteRegistrado,
+  marcarRotuloImpreso,
   registrarLote,
   type EnvioPendiente,
   type Lote,
@@ -94,6 +96,33 @@ export function PanelEnvios({
       mostrar(error instanceof Error ? error.message : 'No se pudo generar el archivo');
     } finally {
       setGenerando(false);
+    }
+  }
+
+  async function alternarImpreso(envio: EnvioPendiente) {
+    const supabase = createClient();
+    const yaImpreso = Boolean(envio.labelPrintedAt);
+
+    // Optimista: no tiene sentido esperar la respuesta del servidor para
+    // algo tan simple como un tache.
+    setPendientes((previos) =>
+      previos.map((e) =>
+        e.id === envio.id
+          ? { ...e, labelPrintedAt: yaImpreso ? null : new Date().toISOString() }
+          : e,
+      ),
+    );
+    vibrar();
+
+    const { error } = yaImpreso
+      ? await desmarcarRotuloImpreso(supabase, envio.shipmentId)
+      : await marcarRotuloImpreso(supabase, [envio.shipmentId]);
+
+    if (error) {
+      mostrar('No se pudo actualizar');
+      setPendientes((previos) =>
+        previos.map((e) => (e.id === envio.id ? { ...e, labelPrintedAt: envio.labelPrintedAt } : e)),
+      );
     }
   }
 
@@ -252,6 +281,18 @@ export function PanelEnvios({
                         </Link>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void alternarImpreso(envio)}
+                      aria-label={envio.labelPrintedAt ? 'Desmarcar como impreso' : 'Marcar como impreso'}
+                      className={`tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-label ${
+                        envio.labelPrintedAt
+                          ? 'border-status-available bg-status-available text-white'
+                          : 'border-line bg-bg text-muted'
+                      }`}
+                    >
+                      {envio.labelPrintedAt ? '✓' : '🏷️'}
+                    </button>
                   </div>
                 </li>
               );
