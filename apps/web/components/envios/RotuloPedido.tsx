@@ -38,11 +38,21 @@ export function RotuloPedido({ pedido, store }: { pedido: Pedido; store: StoreSe
       </header>
 
       <div className="rounded-[--radius-card] border-2 border-ink p-5 print:rounded-none print:border-black">
-        <p className="text-caption uppercase tracking-wide text-muted">Remitente</p>
-        <p className="font-semibold">{store.name}</p>
-        {envio.originAgencyName && (
-          <p className="text-label text-muted">Shalom {envio.originAgencyName}</p>
-        )}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-caption uppercase tracking-wide text-muted">Remitente</p>
+            <p className="font-semibold">{store.name}</p>
+            {envio.originAgencyName && (
+              <p className="text-label text-muted">Shalom {envio.originAgencyName}</p>
+            )}
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-tienda.jpg"
+            alt={store.name}
+            className="h-10 w-auto shrink-0 rounded-sm print:h-9"
+          />
+        </div>
 
         <div className="my-4 border-t border-dashed border-line" />
 
