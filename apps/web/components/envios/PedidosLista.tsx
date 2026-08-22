@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { formatMoney, formatShortDate } from '@percha/core';
 
 import { useToast, vibrar } from '@/components/Toast';
 import {
+  cambiarEstadoPedido,
   desmarcarEmpacado,
   marcarEmpacado,
   type EstadoPedido,
@@ -37,7 +39,40 @@ export function PedidosLista({
   simbolo: string;
 }) {
   const { mostrar } = useToast();
+  const router = useRouter();
   const [pedidos, setPedidos] = useState(pedidosIniciales);
+  const [enviandoTodos, setEnviandoTodos] = useState(false);
+
+  async function marcarTodosEnviados() {
+    if (pedidos.length === 0) return;
+    if (!confirm(`¿Marcar los ${pedidos.length} pedidos como enviados?`)) return;
+
+    setEnviandoTodos(true);
+    const supabase = createClient();
+    const idsOk: string[] = [];
+
+    for (const pedido of pedidos) {
+      // Un pedido en borrador tiene que pasar por "confirmado" primero:
+      // ese paso es el que marca la prenda como vendida. Saltarlo directo
+      // a "enviado" dejaría el inventario descuadrado.
+      if (pedido.status === 'draft') {
+        const { error } = await cambiarEstadoPedido(supabase, pedido.id, 'confirmed');
+        if (error) continue;
+      }
+      const { error } = await cambiarEstadoPedido(supabase, pedido.id, 'shipped');
+      if (!error) idsOk.push(pedido.id);
+    }
+
+    setPedidos((previos) => previos.filter((p) => !idsOk.includes(p.id)));
+    setEnviandoTodos(false);
+    vibrar();
+    mostrar(
+      idsOk.length === pedidos.length
+        ? `${idsOk.length} pedidos marcados como enviados`
+        : `${idsOk.length} de ${pedidos.length} marcados — revisa el resto`,
+    );
+    router.refresh();
+  }
 
   async function alternarEmpacado(pedido: PedidoResumen) {
     const yaEmpacado = Boolean(pedido.packedAt);
@@ -64,8 +99,20 @@ export function PedidosLista({
   }
 
   return (
-    <ul className="space-y-2 pb-8">
-      {pedidos.map((pedido) => {
+    <>
+      <div className="mb-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => void marcarTodosEnviados()}
+          disabled={enviandoTodos || pedidos.length === 0}
+          className="tap rounded-[--radius-control] border border-line bg-surface px-3 py-2 text-label disabled:opacity-40"
+        >
+          {enviandoTodos ? 'Marcando…' : `🚚 Marcar todos como enviados (${pedidos.length})`}
+        </button>
+      </div>
+
+      <ul className="space-y-2 pb-8">
+        {pedidos.map((pedido) => {
         const empacado = Boolean(pedido.packedAt);
         const puedeEmpacar = pedido.status !== 'cancelled';
 
@@ -116,7 +163,8 @@ export function PedidosLista({
             </div>
           </li>
         );
-      })}
-    </ul>
+        })}
+      </ul>
+    </>
   );
 }

@@ -9,12 +9,22 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PedidosPage() {
+const ACTIVOS = new Set(['draft', 'confirmed', 'packed']);
+
+export default async function PedidosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ historial?: string }>;
+}) {
   const supabase = await createClient();
   const membresia = await getMembresia(supabase);
   if (!membresia) redirect('/bienvenida');
 
-  const pedidos = await listarPedidos(supabase, membresia.storeId);
+  const { historial } = await searchParams;
+  const todos = await listarPedidos(supabase, membresia.storeId);
+  // Por defecto solo los activos: una vez enviado, ya cumplió su función
+  // acá y solo estorba para ver qué falta registrar.
+  const pedidos = historial ? todos : todos.filter((p) => ACTIVOS.has(p.status));
   const simbolo = membresia.store.currencySymbol;
 
   return (
@@ -22,7 +32,7 @@ export default async function PedidosPage() {
       <header className="flex items-center justify-between py-4">
         <h1 className="text-title">Pedidos</h1>
         <div className="flex items-center gap-4">
-          {pedidos.length > 0 && (
+          {todos.length > 0 && (
             <ExportarPedidosCsv storeId={membresia.storeId} store={membresia.store} />
           )}
           <Link href="/envios" className="tap text-label underline underline-offset-4">
@@ -31,14 +41,28 @@ export default async function PedidosPage() {
         </div>
       </header>
 
+      <p className="-mt-2 mb-3 text-caption text-muted">
+        {historial ? (
+          <Link href="/pedidos" className="underline underline-offset-4">
+            Ver solo activos
+          </Link>
+        ) : (
+          <Link href="/pedidos?historial=1" className="underline underline-offset-4">
+            Ver historial completo
+          </Link>
+        )}
+      </p>
+
       {pedidos.length === 0 ? (
         <section className="flex flex-col items-center gap-3 py-24 text-center">
           <div className="text-5xl" aria-hidden>
             🧾
           </div>
-          <h2 className="text-title">Todavía no hay pedidos</h2>
+          <h2 className="text-title">{historial ? 'Todavía no hay pedidos' : 'Nada activo por ahora'}</h2>
           <p className="max-w-xs text-muted">
-            Abre una prenda y toca «Convertir en pedido» para registrar la venta y su envío.
+            {historial
+              ? 'Abre una prenda y toca «Convertir en pedido» para registrar la venta y su envío.'
+              : 'Los pedidos nuevos aparecen aquí en cuanto se registran.'}
           </p>
         </section>
       ) : (
