@@ -228,6 +228,25 @@ export function construirFilas(envios: readonly EnvioParaExportar[]): FilaEnvio[
 }
 
 /**
+ * Shalom exige un paquete por fila: un envío con CANTIDAD 3 lo rechaza
+ * entero. Esto convierte cada envío en tantas filas como paquetes tenga,
+ * todas con cantidad 1 — se llama ANTES de repartirEnArchivos, para que
+ * el límite de 499 filas por archivo cuente filas reales y no envíos.
+ */
+export function explotarPorPaquete<T extends EnvioParaExportar>(
+  envios: readonly T[],
+): T[] {
+  const explotados: T[] = [];
+  for (const envio of envios) {
+    const cantidad = Math.max(1, Math.round(envio.packagesCount) || 1);
+    for (let i = 0; i < cantidad; i++) {
+      explotados.push({ ...envio, packagesCount: 1 });
+    }
+  }
+  return explotados;
+}
+
+/**
  * Reparte en varios archivos si no caben en uno.
  *
  * Devuelve siempre al menos un grupo cuando hay envíos, para que la

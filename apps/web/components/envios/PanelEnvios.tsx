@@ -64,20 +64,13 @@ export function PanelEnvios({
       const supabase = createClient();
 
       // Un lote por archivo: si se parte en dos, cada uno se sube y se
-      // confirma por separado.
-      let desde = 0;
+      // confirma por separado. envioIds ya viene armado por archivo —un
+      // envío con varios paquetes ocupa varias filas, pero es un solo
+      // envío para efectos de marcarlo exportado.
       for (const archivo of archivos) {
-        const delArchivo = validos.slice(desde, desde + archivo.filas);
-        desde += archivo.filas;
-
         descargar(archivo);
 
-        const { error } = await registrarLote(
-          supabase,
-          storeId,
-          archivo.nombre,
-          delArchivo.map((e) => e.shipmentId),
-        );
+        const { error } = await registrarLote(supabase, storeId, archivo.nombre, archivo.envioIds);
         if (error) mostrar(error);
       }
 

@@ -54,7 +54,7 @@ describe('generación del Excel de Shalom', () => {
   it('escribe cada envío en su fila, empezando por la 2', async () => {
     const [archivo] = await escribirLibros(cargarPlantilla(), [
       envio({ id: 'a', docNumber: '70503353', destinyAgency: 'JAEN' }),
-      envio({ id: 'b', docNumber: '45889210', destinyAgency: 'TRUJILLO', packagesCount: 2 }),
+      envio({ id: 'b', docNumber: '45889210', destinyAgency: 'TRUJILLO' }),
     ]);
 
     expect(archivo).toBeDefined();
@@ -64,7 +64,30 @@ describe('generación del Excel de Shalom', () => {
     expect(String(hoja.getRow(2).getCell(7).value)).toBe('JAEN');
     expect(String(hoja.getRow(3).getCell(1).value)).toBe('45889210');
     expect(String(hoja.getRow(3).getCell(7).value)).toBe('TRUJILLO');
-    expect(hoja.getRow(3).getCell(13).value).toBe(2);
+    expect(hoja.getRow(3).getCell(13).value).toBe(1);
+  });
+
+  it('separa un envío de varios paquetes en una fila por paquete', async () => {
+    // Shalom rechaza el archivo entero si una fila trae CANTIDAD > 1: cada
+    // paquete necesita su propia fila.
+    const [archivo] = await escribirLibros(cargarPlantilla(), [
+      envio({ id: 'a', docNumber: '70503353', destinyAgency: 'JAEN' }),
+      envio({ id: 'b', docNumber: '45889210', destinyAgency: 'TRUJILLO', packagesCount: 3 }),
+    ]);
+
+    expect(archivo).toBeDefined();
+    expect(archivo?.filas).toBe(4);
+    // El envío 'b' ocupa 3 filas, pero sigue siendo un solo envío al
+    // registrar el lote.
+    expect(archivo?.envioIds).toEqual(['a', 'b']);
+
+    const hoja = (await releer(archivo!.blob)).getWorksheet('Hoja1')!;
+    expect(String(hoja.getRow(2).getCell(1).value)).toBe('70503353');
+    for (const fila of [3, 4, 5]) {
+      expect(String(hoja.getRow(fila).getCell(1).value)).toBe('45889210');
+      expect(String(hoja.getRow(fila).getCell(7).value)).toBe('TRUJILLO');
+      expect(hoja.getRow(fila).getCell(13).value).toBe(1);
+    }
   });
 
   it('conserva el cero inicial del DNI', async () => {

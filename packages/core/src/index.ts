@@ -73,6 +73,7 @@ export {
   construirFila,
   construirFilas,
   enviosValidos,
+  explotarPorPaquete,
   nombreArchivo,
   normalizarTelefono,
   repartirEnArchivos,

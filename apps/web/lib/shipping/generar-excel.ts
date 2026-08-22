@@ -1,6 +1,7 @@
 import {
   COLUMNAS_SHALOM,
   construirFilas,
+  explotarPorPaquete,
   nombreArchivo,
   repartirEnArchivos,
   type EnvioParaExportar,
@@ -28,6 +29,8 @@ export interface ArchivoGenerado {
   nombre: string;
   blob: Blob;
   filas: number;
+  /** IDs de envío (sin repetir) incluidos en este archivo, para marcarlos exportados. */
+  envioIds: string[];
 }
 
 /**
@@ -79,7 +82,9 @@ export async function escribirLibros(
   // no en el bundle inicial de la app.
   const ExcelJS = (await import('exceljs')).default;
 
-  const grupos = repartirEnArchivos(envios);
+  // Shalom exige un paquete por fila: explota ANTES de repartir en
+  // archivos, para que el límite de 499 filas cuente filas reales.
+  const grupos = repartirEnArchivos(explotarPorPaquete(envios));
   const archivos: ArchivoGenerado[] = [];
 
   for (const [indice, grupo] of grupos.entries()) {
@@ -123,6 +128,7 @@ export async function escribirLibros(
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }),
       filas: filas.length,
+      envioIds: [...new Set(grupo.map((e) => e.id))],
     });
   }
 
