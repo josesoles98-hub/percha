@@ -17,6 +17,8 @@ import {
 import { descargar, generarArchivos } from '@/lib/shipping/generar-excel';
 import { createClient } from '@/lib/supabase/client';
 
+import { ImportarBoletas } from './ImportarBoletas';
+
 /**
  * Envíos pendientes de registrar en Shalom Pro.
  *
@@ -278,6 +280,17 @@ export function PanelEnvios({
           )}
         </section>
       )}
+
+      <section className={`mt-8 ${lotes.length === 0 ? 'pb-8' : ''}`}>
+        <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
+          Boletas de Shalom
+        </h2>
+        <p className="mb-2 text-label text-muted">
+          Sube los PDF que te manda Shalom por WhatsApp: los empareja solo con cada pedido por DNI
+          y guarda el código para avisarle al cliente.
+        </p>
+        <ImportarBoletas storeId={storeId} />
+      </section>
 
       {lotes.length > 0 && (
         <section className="mt-8 pb-8">

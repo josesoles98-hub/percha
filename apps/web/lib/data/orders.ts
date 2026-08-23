@@ -877,3 +877,64 @@ export async function listarPedidosParaEmpacar(
     };
   });
 }
+
+// ── Importar boletas de Shalom ──────────────────────────────────────────
+
+export interface ResultadoImportarBoleta {
+  ok: boolean;
+  motivo?: string;
+  orderCode?: string;
+  customerName?: string;
+}
+
+/**
+ * Busca al cliente por DNI y le guarda el código de seguimiento en su
+ * envío más antiguo que todavía no tenga uno — así no hay que reconocer
+ * a mano cuál boleta es de quién.
+ */
+export async function importarTrackingPorDni(
+  supabase: SupabaseClient,
+  storeId: string,
+  dni: string,
+  trackingCode: string,
+): Promise<ResultadoImportarBoleta> {
+  const { data: cliente } = await supabase
+    .from('customers')
+    .select('id, full_name')
+    .eq('store_id', storeId)
+    .eq('doc_number', dni)
+    .maybeSingle();
+
+  if (!cliente) return { ok: false, motivo: `Ningún cliente tiene el DNI ${dni}` };
+
+  const { data: pedido } = await supabase
+    .from('orders')
+    .select('id, code, shipments!inner(id)')
+    .eq('store_id', storeId)
+    .eq('customer_id', cliente.id)
+    .is('shipments.tracking_code', null)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!pedido) {
+    return {
+      ok: false,
+      motivo: `${cliente.full_name} no tiene ningún envío pendiente de código`,
+      customerName: cliente.full_name as string,
+    };
+  }
+
+  const envios = pedido.shipments as Array<{ id: string }>;
+  const envioId = envios[0]?.id;
+  if (!envioId) return { ok: false, motivo: 'No se encontró el envío' };
+
+  const { error } = await supabase
+    .from('shipments')
+    .update({ tracking_code: trackingCode })
+    .eq('id', envioId);
+
+  if (error) return { ok: false, motivo: error.message };
+
+  return { ok: true, orderCode: pedido.code as string, customerName: cliente.full_name as string };
+}

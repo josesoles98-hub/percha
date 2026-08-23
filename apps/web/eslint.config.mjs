@@ -12,7 +12,16 @@ import typescript from 'eslint-config-next/typescript';
  * falta el puente de compatibilidad de @eslint/eslintrc.
  */
 const config = [
-  { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
+  {
+    ignores: [
+      '.next/**',
+      'node_modules/**',
+      'next-env.d.ts',
+      // Build minificado de pdfjs, se copia tal cual a public/ para
+      // servirlo como worker — no es código nuestro.
+      'public/pdf.worker.min.mjs',
+    ],
+  },
 
   ...coreWebVitals,
   ...typescript,

@@ -80,6 +80,6 @@ export const config = {
      * Todo excepto estáticos e imágenes: no tiene sentido validar la sesión
      * para servir un icono.
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|mjs)$).*)',
   ],
 };
