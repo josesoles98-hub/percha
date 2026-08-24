@@ -307,7 +307,7 @@ export function FichaPedido({
           </button>
         ))}
 
-        {pedido.customer?.phone && pedido.status !== 'draft' && pedido.status !== 'cancelled' && (
+        {pedido.customer?.phone && pedido.status !== 'cancelled' && (
           <button
             type="button"
             onClick={avisarPorWhatsApp}
