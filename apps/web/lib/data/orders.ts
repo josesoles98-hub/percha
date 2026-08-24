@@ -307,7 +307,9 @@ export async function listarPedidos(
     .select(COLUMNAS_PEDIDO)
     .eq('store_id', storeId)
     .order('created_at', { ascending: false })
-    .limit(100);
+    // No es un límite de negocio, solo una cota de seguridad para que una
+    // tienda con miles de pedidos no tumbe la página de un tirón.
+    .limit(2000);
 
   if (estado && estado !== 'all') query = query.eq('status', estado);
 

@@ -71,6 +71,12 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(home);
   }
 
+  // Todo detrás de la sesión es privado y cambia todo el tiempo: si algún
+  // CDN de por medio (o el propio celular con datos móviles, que a veces
+  // pasa por un proxy distinto al de wifi) guarda una respuesta vieja, se
+  // ve una foto vieja del inventario o de los pedidos sin darse cuenta.
+  response.headers.set('Cache-Control', 'no-store, must-revalidate');
+
   return response;
 }
 

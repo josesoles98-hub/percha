@@ -7,7 +7,14 @@ import { getMembresia } from '@/lib/data/inventory';
 import { listarPedidos } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 
+// Los tres juntos, sin dejar ninguno por defecto: esta pantalla cambia
+// según quién esté vendiendo en ese momento, así que ninguna capa de
+// caché (ni la de Next, ni la de Vercel/CDN de por medio) debe guardar
+// una respuesta vieja — sobre todo con /pedidos y /pedidos?historial=1
+// siendo la "misma" ruta con distinta query.
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 const ACTIVOS = new Set(['draft', 'confirmed', 'packed']);
 
