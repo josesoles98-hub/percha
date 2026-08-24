@@ -66,7 +66,7 @@ const PEDIDO_DEMO: Pedido = {
 export default function DemoPedidoPage() {
   return (
     <ToastProvider>
-      <FichaPedido pedido={PEDIDO_DEMO} store={STORE_DEMO} fotosCliente={[]} />
+      <FichaPedido pedido={PEDIDO_DEMO} store={STORE_DEMO} fotosCliente={[]} boletaUrl={null} />
     </ToastProvider>
   );
 }

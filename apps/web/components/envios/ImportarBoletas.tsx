@@ -49,6 +49,18 @@ export function ImportarBoletas({ storeId }: { storeId: string }) {
           });
         } else {
           const resultado = await importarTrackingPorDni(supabase, storeId, datos.dni, codigo);
+
+          // El PDF real, para poder compartirlo tal cual — algunos
+          // clientes desconfían de solo un código escrito.
+          if (resultado.ok && resultado.shipmentId) {
+            await supabase.storage
+              .from('boletas-shalom')
+              .upload(`${storeId}/${resultado.shipmentId}.pdf`, archivo, {
+                contentType: 'application/pdf',
+                upsert: true,
+              });
+          }
+
           nuevos.push({
             archivo: archivo.name,
             ok: resultado.ok,

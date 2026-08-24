@@ -887,6 +887,7 @@ export interface ResultadoImportarBoleta {
   motivo?: string;
   orderCode?: string;
   customerName?: string;
+  shipmentId?: string;
 }
 
 /**
@@ -938,5 +939,22 @@ export async function importarTrackingPorDni(
 
   if (error) return { ok: false, motivo: error.message };
 
-  return { ok: true, orderCode: pedido.code as string, customerName: cliente.full_name as string };
+  return {
+    ok: true,
+    orderCode: pedido.code as string,
+    customerName: cliente.full_name as string,
+    shipmentId: envioId,
+  };
+}
+
+/** La boleta en PDF del envío, si se subió una (ver migración 0016). */
+export async function obtenerUrlBoleta(
+  supabase: SupabaseClient,
+  storeId: string,
+  shipmentId: string,
+): Promise<string | null> {
+  const { data } = await supabase.storage
+    .from('boletas-shalom')
+    .createSignedUrl(`${storeId}/${shipmentId}.pdf`, 3600);
+  return data?.signedUrl ?? null;
 }
