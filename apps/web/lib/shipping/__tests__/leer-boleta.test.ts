@@ -44,4 +44,22 @@ describe('extraerCampos', () => {
       codigo: null,
     });
   });
+
+  it('reconoce boletas que dicen solo "DNI:" en vez de "DNI/RUC:"', () => {
+    // Algunas boletas de Shalom usan un formato más corto (sin "/RUC" ni
+    // "Raz. Social"); datos inventados, no son de ningún cliente real.
+    const texto = `
+      DATOS
+      NRO. ORDEN: CÓDIGO: 87654321 WXYZ
+      DATOS DEL REMITENTE
+      Nombre: PERSONA REMITENTE EJEMPLO
+      DNI: 33333333 - Telefono: 900000000
+      DATOS DEL DESTINATARIO
+      Nombre: PERSONA DESTINATARIA EJEMPLO
+      DNI: 44444444 - Telefono: 911111111
+      ENTREGA
+    `;
+
+    expect(extraerCampos(texto)).toEqual({ dni: '44444444', orden: '87654321', codigo: 'WXYZ' });
+  });
 });

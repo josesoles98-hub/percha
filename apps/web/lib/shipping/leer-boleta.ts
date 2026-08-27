@@ -48,9 +48,11 @@ export function extraerCampos(textoCrudo: string): DatosBoleta {
   const orden = ordenYCodigo?.[1] ?? null;
   const codigo = ordenYCodigo?.[2] ?? null;
 
+  // Algunas boletas dicen "DNI/RUC:" y otras solo "DNI:" — el "/RUC" es
+  // opcional para que ambas calcen.
   const desdeDestinatario = texto.search(/DATOS\s+DEL\s+DESTINATARIO/i);
   const bloque = desdeDestinatario >= 0 ? texto.slice(desdeDestinatario) : texto;
-  const dni = bloque.match(/DNI\/?\s*RUC:?\s*(\d{8,11})/i)?.[1] ?? null;
+  const dni = bloque.match(/DNI(?:\/?\s*RUC)?:?\s*(\d{8,11})/i)?.[1] ?? null;
 
   return { dni, orden, codigo };
 }
