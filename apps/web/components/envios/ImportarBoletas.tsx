@@ -52,20 +52,23 @@ export function ImportarBoletas({ storeId }: { storeId: string }) {
 
           // El PDF real, para poder compartirlo tal cual — algunos
           // clientes desconfían de solo un código escrito.
+          let errorPdf: string | null = null;
           if (resultado.ok && resultado.shipmentId) {
-            await supabase.storage
+            const { error } = await supabase.storage
               .from('boletas-shalom')
               .upload(`${storeId}/${resultado.shipmentId}.pdf`, archivo, {
                 contentType: 'application/pdf',
                 upsert: true,
               });
+            if (error) errorPdf = error.message;
           }
 
           nuevos.push({
             archivo: archivo.name,
             ok: resultado.ok,
             detalle: resultado.ok
-              ? `${resultado.orderCode} · ${resultado.customerName}`
+              ? `${resultado.orderCode} · ${resultado.customerName}` +
+                (errorPdf ? ` (⚠️ no se guardó el PDF: ${errorPdf})` : '')
               : (resultado.motivo ?? 'No se pudo emparejar'),
           });
         }
