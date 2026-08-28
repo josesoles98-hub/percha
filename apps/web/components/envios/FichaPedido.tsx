@@ -125,6 +125,7 @@ export function FichaPedido({
       'Tu pedido ya está en camino.',
       pedido.envio?.destinyAgencyName ? `Agencia: Shalom ${pedido.envio.destinyAgencyName}` : null,
       pedido.envio?.trackingCode ? `Código: ${pedido.envio.trackingCode}` : null,
+      boletaUrl ? `Aquí puedes ver tu boleta: ${boletaUrl}` : null,
       '',
       `Total: ${dinero(pedido.totalCents)}`,
       '',

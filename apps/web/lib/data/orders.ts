@@ -953,8 +953,11 @@ export async function obtenerUrlBoleta(
   storeId: string,
   shipmentId: string,
 ): Promise<string | null> {
+  // 30 días: es lo que Shalom guarda el paquete en agencia antes de darlo
+  // por abandonado, y este link se manda por WhatsApp para que el cliente
+  // lo abra cuando le convenga, no en la próxima hora.
   const { data } = await supabase.storage
     .from('boletas-shalom')
-    .createSignedUrl(`${storeId}/${shipmentId}.pdf`, 3600);
+    .createSignedUrl(`${storeId}/${shipmentId}.pdf`, 60 * 60 * 24 * 30);
   return data?.signedUrl ?? null;
 }
