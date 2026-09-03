@@ -125,10 +125,9 @@ export function FichaPedido({
       boletaUrl ? '*Aquí puedes rastrear tu envío:*' : null,
       boletaUrl,
       '',
-      pedido.envio?.trackingCode ? `*🔑 Clave de seguimiento: ${pedido.envio.trackingCode}*` : null,
+      pedido.envio?.trackingCode ? `*🔑 Clave de pedido: ${pedido.envio.trackingCode}*` : null,
       '',
-      `*Gracias por elegir ${store.name}*`,
-      '*Esperamos que disfrutes tu pedido.🫶🏼*',
+      `*Esperamos que disfrutes tu pedido, gracias por elegir ${store.name}.🫶🏼*`,
     ].filter((l): l is string => l !== null);
 
     const url = buildWhatsAppUrl(lineas.join('\n'), pedido.customer?.phone ?? undefined);
