@@ -47,7 +47,6 @@ export function FichaPedido({
   const router = useRouter();
   const { mostrar } = useToast();
   const [ocupado, setOcupado] = useState(false);
-  const [compartiendoBoleta, setCompartiendoBoleta] = useState(false);
 
   const simbolo = store.currencySymbol;
   const dinero = (cents: number) => formatMoney(cents, { symbol: simbolo });
@@ -134,36 +133,6 @@ export function FichaPedido({
 
     const url = buildWhatsAppUrl(lineas.join('\n'), pedido.customer?.phone ?? undefined);
     window.open(url, '_blank', 'noopener');
-  }
-
-  /**
-   * El PDF real de la boleta, no solo el código escrito — algunos
-   * clientes desconfían del texto suelto. `navigator.share` con archivos
-   * abre el mismo panel de compartir del celular, con WhatsApp como una
-   * opción más: no hay forma de "adjuntar y abrir WhatsApp" directo,
-   * porque los links wa.me no admiten archivos.
-   */
-  async function compartirBoleta() {
-    if (!boletaUrl) return;
-    setCompartiendoBoleta(true);
-
-    try {
-      const respuesta = await fetch(boletaUrl);
-      const blob = await respuesta.blob();
-      const archivo = new File([blob], `boleta-${pedido.code}.pdf`, { type: 'application/pdf' });
-
-      if (navigator.canShare?.({ files: [archivo] })) {
-        await navigator.share({ files: [archivo], title: `Boleta ${pedido.code}` });
-      } else {
-        window.open(boletaUrl, '_blank', 'noopener');
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        mostrar('No se pudo compartir la boleta');
-      }
-    } finally {
-      setCompartiendoBoleta(false);
-    }
   }
 
   return (
@@ -348,17 +317,6 @@ export function FichaPedido({
             className="tap w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 font-medium"
           >
             📤 Avisar al cliente por WhatsApp
-          </button>
-        )}
-
-        {boletaUrl && (
-          <button
-            type="button"
-            onClick={() => void compartirBoleta()}
-            disabled={compartiendoBoleta}
-            className="tap w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 font-medium disabled:opacity-40"
-          >
-            {compartiendoBoleta ? 'Preparando…' : '📄 Compartir boleta (PDF)'}
           </button>
         )}
 
