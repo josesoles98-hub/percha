@@ -8,7 +8,7 @@ import {
   getReserveInfo,
   getReserveInfoFromExpiry,
 } from '../reservations/index.js';
-import { renderTemplate } from '../share/template.js';
+import { buildWhatsAppUrl, renderTemplate } from '../share/template.js';
 
 describe('formatMoney', () => {
   it('omite los decimales cuando el precio es redondo', () => {
@@ -173,5 +173,23 @@ describe('plantilla de compartir', () => {
 
   it('conserva el texto fijo aunque no haya ninguna variable', () => {
     expect(renderTemplate('Solo una unidad.', {})).toBe('Solo una unidad.');
+  });
+});
+
+describe('buildWhatsAppUrl', () => {
+  it('agrega el 51 a un celular peruano guardado sin código de país', () => {
+    expect(buildWhatsAppUrl('hola', '958575851')).toBe('https://wa.me/51958575851?text=hola');
+  });
+
+  it('no duplica el 51 si el número ya lo trae', () => {
+    expect(buildWhatsAppUrl('hola', '51958575851')).toBe('https://wa.me/51958575851?text=hola');
+  });
+
+  it('limpia guiones y espacios antes de revisar el código de país', () => {
+    expect(buildWhatsAppUrl('hola', '958-575-851')).toBe('https://wa.me/51958575851?text=hola');
+  });
+
+  it('sin teléfono, deja el link genérico de wa.me', () => {
+    expect(buildWhatsAppUrl('hola')).toBe('https://wa.me/?text=hola');
   });
 });

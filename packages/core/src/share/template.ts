@@ -127,9 +127,21 @@ export function buildShareText(item: Item, store: StoreSettings): string {
  * texto del share sheet; por eso la app además copia el mensaje al
  * portapapeles. Ver sección 4.3 del documento de diseño.
  */
+/**
+ * wa.me exige el número completo CON código de país — sin él, el link
+ * abre pero WhatsApp no encuentra a nadie y muestra "No se pudo abrir
+ * este enlace". Los celulares peruanos se guardan a 9 dígitos (el
+ * formato que se pide al escribirlos), así que si no trae ya el 51
+ * adelante se lo agrega acá, no al guardar el dato.
+ */
+function conCodigoDePais(digitos: string): string {
+  if (digitos.length === 9 && digitos.startsWith('9')) return `51${digitos}`;
+  return digitos;
+}
+
 export function buildWhatsAppUrl(text: string, phone?: string): string {
   const base = phone
-    ? `https://wa.me/${phone.replace(/\D/g, '')}`
+    ? `https://wa.me/${conCodigoDePais(phone.replace(/\D/g, ''))}`
     : 'https://wa.me/';
   return `${base}?text=${encodeURIComponent(text)}`;
 }
