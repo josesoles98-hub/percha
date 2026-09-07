@@ -269,25 +269,32 @@ export function CompletarForm({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-label">Cantidad de paquetes</span>
-          <button
-            type="button"
-            onClick={() => setBultos((b) => Math.max(1, b - 1))}
-            aria-label="Un paquete menos"
-            className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
-          >
-            −
-          </button>
-          <output className="min-w-8 text-center text-title tabular-nums">{bultos}</output>
-          <button
-            type="button"
-            onClick={() => setBultos((b) => b + 1)}
-            aria-label="Un paquete más"
-            className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
-          >
-            +
-          </button>
+        <div>
+          <div className="flex items-center gap-4">
+            <span className="text-label">Cantidad de paquetes</span>
+            <button
+              type="button"
+              onClick={() => setBultos((b) => Math.max(1, b - 1))}
+              aria-label="Un paquete menos"
+              className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
+            >
+              −
+            </button>
+            <output className="min-w-8 text-center text-title tabular-nums">{bultos}</output>
+            <button
+              type="button"
+              onClick={() => setBultos((b) => b + 1)}
+              aria-label="Un paquete más"
+              className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
+            >
+              +
+            </button>
+          </div>
+          <p className="mt-1.5 text-caption text-muted">
+            Casi siempre es <strong className="text-ink">1</strong>, aunque compres varias
+            prendas: todas van juntas en el mismo paquete. Súbelo solo si de verdad son varios
+            paquetes separados — cada uno se cobra aparte.
+          </p>
         </div>
 
         <div>

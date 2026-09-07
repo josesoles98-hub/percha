@@ -27,7 +27,6 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
   const [agencia, setAgencia] = useState<Agencia | null>(null);
   const [paquete, setPaquete] = useState<PackageType>('PAQUETE XS');
   const [bultos, setBultos] = useState(1);
-  const [nota, setNota] = useState('');
   const [selectorAbierto, setSelectorAbierto] = useState(false);
   const [terminoAgencia, setTerminoAgencia] = useState('');
 
@@ -103,7 +102,6 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
     form.set('destinyAgencyId', String(agencia.id));
     form.set('packageType', paquete);
     form.set('packagesCount', String(bultos));
-    if (nota.trim()) form.set('nota', nota.trim());
     fotos.forEach((f, i) => form.append('fotos', f.blob, `foto-${i + 1}.jpg`));
 
     const { code, error: errorEnvio } = await registrarPedido(storeId, form);
@@ -258,38 +256,32 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-label">Cantidad de paquetes</span>
-          <button
-            type="button"
-            onClick={() => setBultos((b) => Math.max(1, b - 1))}
-            aria-label="Un paquete menos"
-            className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
-          >
-            −
-          </button>
-          <output className="min-w-8 text-center text-title tabular-nums">{bultos}</output>
-          <button
-            type="button"
-            onClick={() => setBultos((b) => b + 1)}
-            aria-label="Un paquete más"
-            className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
-          >
-            +
-          </button>
-        </div>
-
         <div>
-          <label htmlFor="nota" className="mb-1.5 block text-label">
-            ¿Qué compraste? (opcional)
-          </label>
-          <input
-            id="nota"
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            placeholder="Ej: casaca negra talla M"
-            className="tap w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 outline-none focus:border-accent"
-          />
+          <div className="flex items-center gap-4">
+            <span className="text-label">Cantidad de paquetes</span>
+            <button
+              type="button"
+              onClick={() => setBultos((b) => Math.max(1, b - 1))}
+              aria-label="Un paquete menos"
+              className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
+            >
+              −
+            </button>
+            <output className="min-w-8 text-center text-title tabular-nums">{bultos}</output>
+            <button
+              type="button"
+              onClick={() => setBultos((b) => b + 1)}
+              aria-label="Un paquete más"
+              className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
+            >
+              +
+            </button>
+          </div>
+          <p className="mt-1.5 text-caption text-muted">
+            Casi siempre es <strong className="text-ink">1</strong>, aunque compres varias
+            prendas: todas van juntas en el mismo paquete. Súbelo solo si de verdad son varios
+            paquetes separados — cada uno se cobra aparte.
+          </p>
         </div>
 
         <div>
