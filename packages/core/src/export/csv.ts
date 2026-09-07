@@ -6,6 +6,7 @@
  * cálculo. Es la salida de emergencia del producto.
  */
 
+import type { ProfitDay } from '../finance/profit';
 import { formatMoney } from '../format/money';
 import { GENDER_META, STATUS_META, type Item, type StoreSettings } from '../types/index';
 
@@ -126,6 +127,86 @@ export function pedidosACsv(pedidos: readonly PedidoParaCsv[], store: StoreSetti
   }
 
   return lineas.join('\r\n');
+}
+
+export const COLUMNAS_GANANCIAS = [
+  'Día',
+  'Ingresos',
+  'Costo de prendas',
+  'Gastos (ads y otros)',
+  'Ganancia bruta',
+  'Ganancia neta',
+  'Prendas vendidas',
+] as const;
+
+/**
+ * El reporte que suele pedir un banco, una mentoría o un contador: cuánto
+ * entró, cuánto costó y cuánto queda, día por día. Ganancia bruta es
+ * ingresos − costo; neta le resta además los gastos (ads, etc.) del día.
+ */
+export function gananciasACsv(dias: readonly ProfitDay[], store: StoreSettings): string {
+  const dinero = (cents: number) => formatMoney(cents, { symbol: store.currencySymbol });
+  const lineas = [filaCsv([...COLUMNAS_GANANCIAS])];
+
+  for (const dia of dias) {
+    const bruta = dia.revenueCents - dia.costCents;
+    const neta = bruta - dia.expensesCents;
+    lineas.push(
+      filaCsv([dia.day, dinero(dia.revenueCents), dinero(dia.costCents), dinero(dia.expensesCents), dinero(bruta), dinero(neta), dia.itemsSold]),
+    );
+  }
+
+  return lineas.join('\r\n');
+}
+
+export function nombreArchivoCsvGanancias(nombreTienda: string, fecha: Date = new Date()): string {
+  return `ganancias-${nombreLimpio(nombreTienda) || 'tienda'}-${fecha.toISOString().slice(0, 10)}.csv`;
+}
+
+export interface PrendaVendidaParaCsv {
+  code: string;
+  name: string | null;
+  fecha: string;
+  soldPriceCents: number;
+  costCents: number | null;
+  marginCents: number | null;
+}
+
+export const COLUMNAS_PRENDAS_VENDIDAS = [
+  'Código',
+  'Nombre',
+  'Fecha de venta',
+  'Precio vendido',
+  'Costo',
+  'Ganancia',
+] as const;
+
+/** El detalle prenda por prenda del período que ya se ve en /ganancias. */
+export function prendasVendidasACsv(
+  prendas: readonly PrendaVendidaParaCsv[],
+  store: StoreSettings,
+): string {
+  const dinero = (cents: number) => formatMoney(cents, { symbol: store.currencySymbol });
+  const lineas = [filaCsv([...COLUMNAS_PRENDAS_VENDIDAS])];
+
+  for (const prenda of prendas) {
+    lineas.push(
+      filaCsv([
+        prenda.code,
+        prenda.name,
+        soloFecha(prenda.fecha),
+        dinero(prenda.soldPriceCents),
+        prenda.costCents === null ? '' : dinero(prenda.costCents),
+        prenda.marginCents === null ? 'sin costo' : dinero(prenda.marginCents),
+      ]),
+    );
+  }
+
+  return lineas.join('\r\n');
+}
+
+export function nombreArchivoCsvPrendasVendidas(nombreTienda: string, fecha: Date = new Date()): string {
+  return `prendas-vendidas-${nombreLimpio(nombreTienda) || 'tienda'}-${fecha.toISOString().slice(0, 10)}.csv`;
 }
 
 function nombreLimpio(nombreTienda: string): string {

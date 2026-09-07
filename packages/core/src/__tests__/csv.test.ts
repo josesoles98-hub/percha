@@ -5,9 +5,12 @@ import {
   COLUMNAS_INVENTARIO,
   escaparCsv,
   filaCsv,
+  gananciasACsv,
   inventarioACsv,
   nombreArchivoCsv,
+  prendasVendidasACsv,
 } from '../export/csv';
+import type { ProfitDay } from '../finance/profit';
 import type { Item, StoreSettings } from '../types/index';
 
 const tienda: StoreSettings = {
@@ -199,5 +202,64 @@ describe('BOM', () => {
   it('es la marca que hace que Excel lea bien las tildes', () => {
     expect(BOM_UTF8).toBe('﻿');
     expect(BOM_UTF8).toHaveLength(1);
+  });
+});
+
+describe('gananciasACsv', () => {
+  const dias: ProfitDay[] = [
+    { day: '2026-09-06', revenueCents: 10000, costCents: 4000, itemsSold: 2, expensesCents: 1000 },
+    { day: '2026-09-07', revenueCents: 0, costCents: 0, itemsSold: 0, expensesCents: 0 },
+  ];
+
+  it('calcula ganancia bruta y neta por día, con el símbolo de la tienda', () => {
+    const csv = gananciasACsv(dias, tienda);
+    const filas = csv.split('\r\n');
+
+    expect(filas[0]).toBe('Día,Ingresos,Costo de prendas,Gastos (ads y otros),Ganancia bruta,Ganancia neta,Prendas vendidas');
+    // bruta = 10000 - 4000 = 6000 (S/60); neta = 6000 - 1000 = 5000 (S/50)
+    expect(filas[1]).toBe('2026-09-06,S/100,S/40,S/10,S/60,S/50,2');
+  });
+
+  it('un día sin ventas ni gastos igual sale en el reporte, en cero', () => {
+    const csv = gananciasACsv(dias, tienda);
+    expect(csv).toContain('2026-09-07,S/0,S/0,S/0,S/0,S/0,0');
+  });
+});
+
+describe('prendasVendidasACsv', () => {
+  it('marca "sin costo" en vez de inventar una ganancia que no se puede calcular', () => {
+    const csv = prendasVendidasACsv(
+      [
+        {
+          code: 'PR-000001',
+          name: 'Casaca',
+          fecha: '2026-09-06T15:00:00.000Z',
+          soldPriceCents: 8000,
+          costCents: null,
+          marginCents: null,
+        },
+      ],
+      tienda,
+    );
+
+    expect(csv).toContain('PR-000001,Casaca,2026-09-06,S/80,,sin costo');
+  });
+
+  it('con costo registrado, calcula la ganancia de esa prenda', () => {
+    const csv = prendasVendidasACsv(
+      [
+        {
+          code: 'PR-000002',
+          name: 'Jean',
+          fecha: '2026-09-05T15:00:00.000Z',
+          soldPriceCents: 6000,
+          costCents: 2000,
+          marginCents: 4000,
+        },
+      ],
+      tienda,
+    );
+
+    expect(csv).toContain('PR-000002,Jean,2026-09-05,S/60,S/20,S/40');
   });
 });

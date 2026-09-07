@@ -95,15 +95,22 @@ export type {
 // ── Exportación ───────────────────────────────────────────────────────
 export {
   BOM_UTF8,
+  COLUMNAS_GANANCIAS,
   COLUMNAS_INVENTARIO,
   COLUMNAS_PEDIDOS,
+  COLUMNAS_PRENDAS_VENDIDAS,
   escaparCsv,
   filaCsv,
+  gananciasACsv,
   inventarioACsv,
   nombreArchivoCsv,
+  nombreArchivoCsvGanancias,
   nombreArchivoCsvPedidos,
+  nombreArchivoCsvPrendasVendidas,
   pedidosACsv,
+  prendasVendidasACsv,
   type PedidoParaCsv,
+  type PrendaVendidaParaCsv,
 } from './export/csv';
 
 // ── Validación ────────────────────────────────────────────────────────

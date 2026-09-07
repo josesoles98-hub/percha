@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { esDelMismoMes, formatMoney, summarizeProfitDays } from '@percha/core';
 
+import { DescargarGanancias } from '@/components/DescargarGanancias';
 import { GastosPanel } from '@/components/GastosPanel';
 import { agruparPorDia, listarGastos, listarPrendasVendidas } from '@/lib/data/finanzas';
 import { getMembresia } from '@/lib/data/inventory';
@@ -77,6 +78,8 @@ export default async function GananciasPage() {
         </h2>
         <GastosPanel storeId={storeId} simbolo={simbolo} gastosIniciales={gastos.slice(0, 15)} />
       </section>
+
+      <DescargarGanancias storeId={storeId} store={store} />
 
       {/* ── El resto, oculto por defecto: no todos los días hace falta ── */}
       <details className="mt-6 pb-4">
