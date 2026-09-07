@@ -37,7 +37,6 @@ export function CompletarForm({
     datosDemo?.agencias.find((a) => a.id === datosDemo.destinyAgencyId) ?? null,
   );
   const [paquete, setPaquete] = useState<PackageType>((datosDemo?.packageType as PackageType) ?? 'PAQUETE XS');
-  const [bultos, setBultos] = useState(datosDemo?.packagesCount ?? 1);
   const [selectorAbierto, setSelectorAbierto] = useState(false);
   const [terminoAgencia, setTerminoAgencia] = useState('');
 
@@ -67,7 +66,6 @@ export function CompletarForm({
         if (PACKAGE_TYPES.includes(data.packageType as PackageType)) {
           setPaquete(data.packageType as PackageType);
         }
-        setBultos(data.packagesCount || 1);
         const actual = data.agencias.find((a) => a.id === data.destinyAgencyId);
         if (actual) setAgencia(actual);
       }
@@ -120,7 +118,7 @@ export function CompletarForm({
     form.set('phone', telefono);
     form.set('destinyAgencyId', String(agencia.id));
     form.set('packageType', paquete);
-    form.set('packagesCount', String(bultos));
+    form.set('packagesCount', '1');
     fotos.forEach((f, i) => form.append('fotos', f.blob, `foto-${i + 1}.jpg`));
 
     const { ok, error: errorEnvio } = await enviarDatosPedido(orderId, form);
@@ -270,30 +268,10 @@ export function CompletarForm({
         </div>
 
         <div>
-          <div className="flex items-center gap-4">
-            <span className="text-label">Cantidad de paquetes</span>
-            <button
-              type="button"
-              onClick={() => setBultos((b) => Math.max(1, b - 1))}
-              aria-label="Un paquete menos"
-              className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
-            >
-              −
-            </button>
-            <output className="min-w-8 text-center text-title tabular-nums">{bultos}</output>
-            <button
-              type="button"
-              onClick={() => setBultos((b) => b + 1)}
-              aria-label="Un paquete más"
-              className="tap rounded-[--radius-control] border border-line bg-surface px-4 text-title"
-            >
-              +
-            </button>
-          </div>
+          <span className="text-label">Cantidad de paquetes</span>
+          <p className="mt-1 text-label">1 paquete</p>
           <p className="mt-1.5 text-caption text-muted">
-            Casi siempre es <strong className="text-ink">1</strong>, aunque compres varias
-            prendas: todas van juntas en el mismo paquete. Súbelo solo si de verdad son varios
-            paquetes separados — cada uno se cobra aparte.
+            Todo tu pedido se envía en un solo paquete, sin importar cuántas prendas compres.
           </p>
         </div>
 
