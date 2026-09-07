@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ExpenseCategory, ProfitDay } from '@percha/core';
+import { summarizeProfitDays, type ExpenseCategory, type ProfitDay, type ProfitSummary } from '@percha/core';
 
 /**
  * Panel de ganancias: lo que se vendió, con su costo, y los gastos (ads,
@@ -141,6 +141,27 @@ export function agruparPorDia(
   }
 
   return [...porDia.values()].sort((a, b) => a.day.localeCompare(b.day));
+}
+
+/**
+ * La ganancia neta de HOY, para mostrarla compacta en el Panel — la misma
+ * cuenta que hace /ganancias, pero sin traer los últimos 31 días completos.
+ */
+export async function obtenerGananciaHoy(
+  supabase: SupabaseClient,
+  storeId: string,
+  timezone: string,
+): Promise<ProfitSummary> {
+  const desde = new Date();
+  desde.setDate(desde.getDate() - 1); // colchón: un huso horario distinto no debe cortar el día
+
+  const [prendas, gastos] = await Promise.all([
+    listarPrendasVendidas(supabase, storeId, desde),
+    listarGastos(supabase, storeId, desde),
+  ]);
+
+  const dias = agruparPorDia(prendas, gastos, 2, timezone);
+  return summarizeProfitDays(dias.slice(-1));
 }
 
 function claveDia(fecha: Date, timezone: string): string {

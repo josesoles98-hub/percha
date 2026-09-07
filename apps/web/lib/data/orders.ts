@@ -459,6 +459,57 @@ export async function buscarPrendasDisponibles(
   });
 }
 
+export interface ClienteConReserva {
+  reservedForName: string;
+  reservedForPhone: string | null;
+  prendas: Array<{ code: string; name: string | null; priceCents: number }>;
+}
+
+/**
+ * Clientes que YA tienen algo reservado, para reconocerlos al reservar otra
+ * prenda días después — sin esto, cada reserva nueva pide escribir el
+ * nombre y el teléfono desde cero, aunque sea la tercera vez esa semana.
+ *
+ * Busca en `items`, no en `customers`: la mayoría de reservas empiezan por
+ * WhatsApp, antes de que exista un cliente formal (eso pasa recién al
+ * armar el pedido de envío), así que el nombre/teléfono de la reserva es la
+ * única pista que hay todavía.
+ */
+export async function buscarClientesConReserva(
+  supabase: SupabaseClient,
+  storeId: string,
+  termino: string,
+): Promise<ClienteConReserva[]> {
+  const limpio = termino.trim().replace(/[,()"\\*]/g, ' ').trim();
+  if (!limpio) return [];
+
+  const { data } = await supabase
+    .from('items_view')
+    .select('code, name, price_cents, reserved_for_name, reserved_for_phone')
+    .eq('store_id', storeId)
+    .eq('effective_status', 'reserved')
+    .ilike('reserved_for_name', `*${limpio}*`)
+    .order('reserved_at', { ascending: false })
+    .limit(50);
+
+  const porCliente = new Map<string, ClienteConReserva>();
+  for (const fila of (data ?? []) as Array<Record<string, unknown>>) {
+    const nombre = fila.reserved_for_name as string;
+    const telefono = (fila.reserved_for_phone as string) ?? null;
+    const clave = `${nombre}|${telefono ?? ''}`;
+
+    const cliente = porCliente.get(clave) ?? { reservedForName: nombre, reservedForPhone: telefono, prendas: [] };
+    cliente.prendas.push({
+      code: fila.code as string,
+      name: (fila.name as string) ?? null,
+      priceCents: fila.price_cents as number,
+    });
+    porCliente.set(clave, cliente);
+  }
+
+  return [...porCliente.values()];
+}
+
 export interface NuevoPedido {
   storeId: string;
   customerId: string;

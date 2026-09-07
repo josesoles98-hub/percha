@@ -7,7 +7,12 @@ import { formatMoney, parseMoneyToCents, type Item, type StoreSettings } from '@
 import { PrendaThumb } from '@/components/PrendaThumb';
 import { useToast, vibrar } from '@/components/Toast';
 import { cambiarEstado } from '@/lib/data/mutations';
-import { buscarPrendasDisponibles, type PrendaDisponible } from '@/lib/data/orders';
+import {
+  buscarClientesConReserva,
+  buscarPrendasDisponibles,
+  type ClienteConReserva,
+  type PrendaDisponible,
+} from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/client';
 
 /**
@@ -59,6 +64,44 @@ export function ReservarVariasForm({
   const [telefono, setTelefono] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Reconocer a un cliente que ya tiene algo reservado ────────────────
+  // Sin esto, reservarle otra prenda días después obliga a escribir su
+  // nombre y teléfono de nuevo, aunque ya los tengamos guardados aquí mismo.
+  const [sugerenciasCliente, setSugerenciasCliente] = useState<ClienteConReserva[]>([]);
+  const [buscandoSugerencias, setBuscandoSugerencias] = useState(false);
+  const [clienteReconocido, setClienteReconocido] = useState<ClienteConReserva | null>(null);
+
+  // Ya elegido o muy corto: no hay nada que buscar. En vez de vaciar
+  // `sugerenciasCliente` desde el efecto, la lista vieja simplemente no se
+  // muestra (ver JSX) hasta la próxima búsqueda real.
+  const puedeSugerirCliente = !clienteReconocido && nombre.trim().length >= 2;
+
+  useEffect(() => {
+    if (!puedeSugerirCliente) return;
+
+    let cancelado = false;
+    const t = setTimeout(async () => {
+      setBuscandoSugerencias(true);
+      const encontrados = await buscarClientesConReserva(createClient(), storeId, nombre);
+      if (!cancelado) {
+        setSugerenciasCliente(encontrados);
+        setBuscandoSugerencias(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(t);
+    };
+  }, [nombre, puedeSugerirCliente, storeId]);
+
+  function elegirClienteReconocido(cliente: ClienteConReserva) {
+    setNombre(cliente.reservedForName);
+    setTelefono(cliente.reservedForPhone ?? '');
+    setClienteReconocido(cliente);
+    setSugerenciasCliente([]);
+  }
 
   useEffect(() => {
     if (!buscandoPrenda) return;
@@ -253,19 +296,58 @@ export function ReservarVariasForm({
         <section className="space-y-3">
           <h2 className="text-label font-medium">Cliente</h2>
 
-          <div>
+          <div className="relative">
             <label htmlFor="nombre-reserva" className="mb-1.5 block text-label">
               Nombre
             </label>
             <input
               id="nombre-reserva"
               autoFocus
+              autoComplete="off"
               value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
+              onChange={(e) => {
+                setNombre(e.target.value);
+                setClienteReconocido(null);
+              }}
               placeholder="María Quispe"
               className="tap w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 outline-none focus:border-accent"
             />
+
+            {/* Clientes que ya tienen algo reservado y coinciden con lo escrito */}
+            {puedeSugerirCliente && (buscandoSugerencias || sugerenciasCliente.length > 0) && (
+              <ul className="absolute inset-x-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-[--radius-control] border border-line bg-bg shadow-lg">
+                {buscandoSugerencias && sugerenciasCliente.length === 0 && (
+                  <li className="px-4 py-2.5 text-label text-muted">Buscando…</li>
+                )}
+                {sugerenciasCliente.map((cliente) => (
+                  <li key={`${cliente.reservedForName}|${cliente.reservedForPhone}`}>
+                    <button
+                      type="button"
+                      onClick={() => elegirClienteReconocido(cliente)}
+                      className="tap flex w-full flex-col items-start gap-0.5 border-b border-line px-4 py-2.5 text-left last:border-b-0"
+                    >
+                      <span className="font-medium">{cliente.reservedForName}</span>
+                      <span className="text-caption text-muted">
+                        Ya tiene {cliente.prendas.length}{' '}
+                        {cliente.prendas.length === 1 ? 'prenda reservada' : 'prendas reservadas'}
+                        {cliente.reservedForPhone ? ` · ${cliente.reservedForPhone}` : ''}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
+
+          {clienteReconocido && (
+            <p className="rounded-[--radius-control] bg-accent/10 px-3 py-2 text-caption text-ink">
+              🔁 {clienteReconocido.reservedForName} ya tiene reservado:{' '}
+              {clienteReconocido.prendas
+                .map((p) => `${p.name ?? p.code} (${formatMoney(p.priceCents, { symbol: store.currencySymbol })})`)
+                .join(', ')}
+              . Esta prenda se suma aparte, con su propia fecha de vencimiento.
+            </p>
+          )}
 
           <div>
             <label htmlFor="telefono-reserva" className="mb-1.5 block text-label">

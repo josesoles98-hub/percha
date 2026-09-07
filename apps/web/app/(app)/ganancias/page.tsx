@@ -57,10 +57,9 @@ export default async function GananciasPage() {
         <h1 className="text-title">Ganancias</h1>
       </header>
 
-      {/* ── Hoy / Este mes ────────────────────────────────────────────── */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* ── Hoy: lo único que hace falta ver de un vistazo ────────────── */}
+      <section>
         <TarjetaResumen titulo="Hoy" resumen={hoy} dinero={dinero} />
-        <TarjetaResumen titulo="Este mes" resumen={esteMes} dinero={dinero} />
       </section>
 
       {sinCosto > 0 && (
@@ -71,7 +70,7 @@ export default async function GananciasPage() {
         </p>
       )}
 
-      {/* ── Gastos: agregar y ver ──────────────────────────────────────── */}
+      {/* ── Gastos: agregar el de hoy, sin buscar nada más ────────────── */}
       <section className="mt-6">
         <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
           Gastos (ads y otros)
@@ -79,87 +78,98 @@ export default async function GananciasPage() {
         <GastosPanel storeId={storeId} simbolo={simbolo} gastosIniciales={gastos.slice(0, 15)} />
       </section>
 
-      {/* ── Últimos 31 días, día por día ─────────────────────────────────── */}
-      <section className="mt-6">
-        <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
-          Últimos {DIAS_HISTORIAL} días
-        </h2>
-        <div className="overflow-hidden rounded-[--radius-card] border border-line bg-surface">
-          <table className="w-full text-label">
-            <thead>
-              <tr className="border-b border-line text-caption text-muted">
-                <th className="px-3 py-2 text-left font-medium">Día</th>
-                <th className="px-3 py-2 text-right font-medium">Ingreso</th>
-                <th className="px-3 py-2 text-right font-medium">Gastos</th>
-                <th className="px-3 py-2 text-right font-medium">Ganancia neta</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {[...dias].reverse().map((dia) => {
-                const neto = dia.revenueCents - dia.costCents - dia.expensesCents;
-                if (dia.revenueCents === 0 && dia.expensesCents === 0) return null;
-                return (
-                  <tr key={dia.day}>
-                    <td className="px-3 py-2">
-                      {new Date(`${dia.day}T12:00:00`).toLocaleDateString('es-PE', {
-                        day: 'numeric',
-                        month: 'short',
-                      })}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{dinero(dia.revenueCents)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-muted">
-                      {dia.expensesCents > 0 ? dinero(dia.expensesCents) : '—'}
-                    </td>
-                    <td
-                      className={`px-3 py-2 text-right font-medium tabular-nums ${
-                        neto < 0 ? 'text-status-sold' : ''
-                      }`}
-                    >
-                      {dinero(neto)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {dias.every((d) => d.revenueCents === 0 && d.expensesCents === 0) && (
-            <p className="p-4 text-center text-label text-muted">
-              Todavía no hay ventas ni gastos en estos {DIAS_HISTORIAL} días.
-            </p>
-          )}
-        </div>
-      </section>
+      {/* ── El resto, oculto por defecto: no todos los días hace falta ── */}
+      <details className="mt-6 pb-4">
+        <summary className="tap cursor-pointer text-label font-medium text-accent">
+          Ver más detalle (este mes, historial, prendas vendidas)
+        </summary>
 
-      {/* ── Prendas vendidas, con su margen ──────────────────────────────── */}
-      <section className="mt-6 pb-4">
-        <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
-          Prendas vendidas
-        </h2>
-        <ul className="divide-y divide-line overflow-hidden rounded-[--radius-card] border border-line bg-surface">
-          {prendas.map((p) => (
-            <li key={p.code} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{p.name ?? p.code}</p>
-                <p className="text-caption text-muted">
-                  {p.code} ·{' '}
-                  {new Date(p.soldAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="tabular-nums">{dinero(p.soldPriceCents)}</p>
-                <p className="text-caption tabular-nums text-muted">
-                  {p.marginCents !== null ? `+${dinero(p.marginCents)}` : 'sin costo'}
-                </p>
-              </div>
-            </li>
-          ))}
-          {prendas.length === 0 && (
-            <li className="p-4 text-center text-label text-muted">
-              Todavía no hay prendas vendidas en estos {DIAS_HISTORIAL} días.
-            </li>
-          )}
-        </ul>
-      </section>
+        <div className="mt-4">
+          <TarjetaResumen titulo="Este mes" resumen={esteMes} dinero={dinero} />
+        </div>
+
+        {/* ── Últimos 31 días, día por día ───────────────────────────── */}
+        <section className="mt-4">
+          <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
+            Últimos {DIAS_HISTORIAL} días
+          </h2>
+          <div className="overflow-hidden rounded-[--radius-card] border border-line bg-surface">
+            <table className="w-full text-label">
+              <thead>
+                <tr className="border-b border-line text-caption text-muted">
+                  <th className="px-3 py-2 text-left font-medium">Día</th>
+                  <th className="px-3 py-2 text-right font-medium">Ingreso</th>
+                  <th className="px-3 py-2 text-right font-medium">Gastos</th>
+                  <th className="px-3 py-2 text-right font-medium">Ganancia neta</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {[...dias].reverse().map((dia) => {
+                  const neto = dia.revenueCents - dia.costCents - dia.expensesCents;
+                  if (dia.revenueCents === 0 && dia.expensesCents === 0) return null;
+                  return (
+                    <tr key={dia.day}>
+                      <td className="px-3 py-2">
+                        {new Date(`${dia.day}T12:00:00`).toLocaleDateString('es-PE', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{dinero(dia.revenueCents)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted">
+                        {dia.expensesCents > 0 ? dinero(dia.expensesCents) : '—'}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-medium tabular-nums ${
+                          neto < 0 ? 'text-status-sold' : ''
+                        }`}
+                      >
+                        {dinero(neto)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {dias.every((d) => d.revenueCents === 0 && d.expensesCents === 0) && (
+              <p className="p-4 text-center text-label text-muted">
+                Todavía no hay ventas ni gastos en estos {DIAS_HISTORIAL} días.
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* ── Prendas vendidas, con su margen ───────────────────────── */}
+        <section className="mt-4">
+          <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
+            Prendas vendidas
+          </h2>
+          <ul className="divide-y divide-line overflow-hidden rounded-[--radius-card] border border-line bg-surface">
+            {prendas.map((p) => (
+              <li key={p.code} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{p.name ?? p.code}</p>
+                  <p className="text-caption text-muted">
+                    {p.code} ·{' '}
+                    {new Date(p.soldAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="tabular-nums">{dinero(p.soldPriceCents)}</p>
+                  <p className="text-caption tabular-nums text-muted">
+                    {p.marginCents !== null ? `+${dinero(p.marginCents)}` : 'sin costo'}
+                  </p>
+                </div>
+              </li>
+            ))}
+            {prendas.length === 0 && (
+              <li className="p-4 text-center text-label text-muted">
+                Todavía no hay prendas vendidas en estos {DIAS_HISTORIAL} días.
+              </li>
+            )}
+          </ul>
+        </section>
+      </details>
     </main>
   );
 }

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { formatMoney, type DashboardStats } from '@percha/core';
 
+import { obtenerGananciaHoy } from '@/lib/data/finanzas';
 import { getMembresia } from '@/lib/data/inventory';
 import { createClient } from '@/lib/supabase/server';
 
@@ -25,7 +26,9 @@ export default async function PanelPage() {
   hace7dias.setDate(hace7dias.getDate() - 6);
   hace7dias.setHours(0, 0, 0, 0);
 
-  const [statsRes, recientesRes, vendidasRes] = await Promise.all([
+  const esDueña = role === 'owner';
+
+  const [statsRes, recientesRes, vendidasRes, gananciaHoy] = await Promise.all([
     supabase.rpc('dashboard_stats', { p_store_id: storeId }),
     supabase
       .from('items')
@@ -42,6 +45,9 @@ export default async function PanelPage() {
       .select('sold_price_cents')
       .eq('store_id', storeId)
       .eq('effective_status', 'sold'),
+    // Los gastos son solo de la dueña (RLS): pedirlo si no lo es devolvería
+    // todo en cero, así que ni se consulta.
+    esDueña ? obtenerGananciaHoy(supabase, storeId, store.timezone) : null,
   ]);
 
   const crudo = (statsRes.data ?? {}) as Record<string, number>;
@@ -87,9 +93,37 @@ export default async function PanelPage() {
         <h1 className="text-title">Panel</h1>
       </header>
 
+      {/* ── Ganancia neta de hoy (solo dueña) ─────────────────────────── */}
+      {esDueña && gananciaHoy && (
+        <Link
+          href="/ganancias"
+          className="tap block rounded-[--radius-card] border border-line bg-surface p-5"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-caption font-medium uppercase tracking-wide text-muted">
+              Ganancia neta hoy
+            </p>
+            <span className="text-caption text-accent">Ver detalle ›</span>
+          </div>
+          <p
+            className={`mt-1 text-[2.5rem] font-bold leading-tight tabular-nums ${
+              gananciaHoy.netProfitCents < 0 ? 'text-status-sold' : ''
+            }`}
+          >
+            {formatMoney(gananciaHoy.netProfitCents, { symbol: simbolo })}
+          </p>
+          <p className="text-label text-muted">
+            {gananciaHoy.itemsSold} {gananciaHoy.itemsSold === 1 ? 'prenda vendida' : 'prendas vendidas'}{' '}
+            hoy
+            {gananciaHoy.expensesCents > 0 &&
+              ` · gastaste ${formatMoney(gananciaHoy.expensesCents, { symbol: simbolo })} en ads`}
+          </p>
+        </Link>
+      )}
+
       {/* ── Valor del inventario ──────────────────────────────────────── */}
       {puedeVerTotales && (
-        <section className="rounded-[--radius-card] border border-line bg-surface p-5">
+        <section className="mt-3 rounded-[--radius-card] border border-line bg-surface p-5">
           <p className="text-caption font-medium uppercase tracking-wide text-muted">
             Valor del inventario
           </p>
