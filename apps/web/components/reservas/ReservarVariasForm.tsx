@@ -9,6 +9,7 @@ import { useToast, vibrar } from '@/components/Toast';
 import { cambiarEstado } from '@/lib/data/mutations';
 import {
   buscarClientesConReserva,
+  buscarOCrearCliente,
   buscarPrendasDisponibles,
   type ClienteConReserva,
   type PrendaDisponible,
@@ -150,12 +151,25 @@ export function ReservarVariasForm({
     setError(null);
     const supabase = createClient();
 
+    // El cliente (tabla `customers`) es lo que hace que esta reserva sume al
+    // historial de la persona, aunque nunca llegue a ser un pedido formal.
+    const { data: cliente, error: errorCliente } = await buscarOCrearCliente(supabase, storeId, {
+      fullName: nombre,
+      phone: telefono,
+    });
+    if (!cliente) {
+      setGuardando(false);
+      setError(errorCliente ?? 'No se pudo guardar el cliente');
+      return;
+    }
+
     const resultados = await Promise.allSettled(
       prendas.map((prenda) =>
         cambiarEstado(supabase, prenda.id, 'reserved', {
           reservedForName: nombre,
           reservedForPhone: telefono,
           reservedDepositCents: parseMoneyToCents(depositos[prenda.id]),
+          customerId: cliente.id,
         }),
       ),
     );

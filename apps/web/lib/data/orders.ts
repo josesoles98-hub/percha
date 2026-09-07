@@ -82,6 +82,77 @@ export async function getCliente(
   return data ? mapCliente(data as Record<string, unknown>) : null;
 }
 
+export interface PedidoDeCliente {
+  code: string;
+  status: string;
+  totalCents: number;
+  createdAt: string;
+  prendas: number;
+}
+
+export interface PrendaDeCliente {
+  code: string;
+  name: string | null;
+  /** 'sold' o 'reserved' — un cliente no queda ligado a una prenda 'available'. */
+  status: 'sold' | 'reserved';
+  priceCents: number;
+  soldPriceCents: number | null;
+  /** Fecha del evento: cuándo se vendió o, si sigue reservada, cuándo se reservó. */
+  fecha: string;
+}
+
+export interface HistorialCliente {
+  pedidos: PedidoDeCliente[];
+  prendas: PrendaDeCliente[];
+}
+
+/**
+ * Todo lo que un cliente compró o reservó, junte o no un pedido formal de
+ * envío: pedidos (tabla `orders`) y prendas vendidas/reservadas directo
+ * (tabla `items`, por `customer_id`). Son dos fuentes porque hoy una venta
+ * o reserva directa no crea un pedido — ver migración 0018.
+ */
+export async function obtenerHistorialCliente(
+  supabase: SupabaseClient,
+  storeId: string,
+  clienteId: string,
+): Promise<HistorialCliente> {
+  const [pedidosRes, prendasRes] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('code, status, total_cents, created_at, order_items(item_id)')
+      .eq('store_id', storeId)
+      .eq('customer_id', clienteId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('items_view')
+      .select('code, name, effective_status, price_cents, sold_price_cents, sold_at, reserved_at')
+      .eq('store_id', storeId)
+      .eq('customer_id', clienteId)
+      .in('effective_status', ['sold', 'reserved'])
+      .order('created_at', { ascending: false }),
+  ]);
+
+  const pedidos: PedidoDeCliente[] = (pedidosRes.data ?? []).map((fila) => ({
+    code: fila.code as string,
+    status: fila.status as string,
+    totalCents: fila.total_cents as number,
+    createdAt: fila.created_at as string,
+    prendas: ((fila.order_items as unknown[]) ?? []).length,
+  }));
+
+  const prendas: PrendaDeCliente[] = (prendasRes.data ?? []).map((fila) => ({
+    code: fila.code as string,
+    name: (fila.name as string) ?? null,
+    status: fila.effective_status as 'sold' | 'reserved',
+    priceCents: fila.price_cents as number,
+    soldPriceCents: (fila.sold_price_cents as number) ?? null,
+    fecha: ((fila.sold_at as string) ?? (fila.reserved_at as string)) as string,
+  }));
+
+  return { pedidos, prendas };
+}
+
 export interface DatosCliente {
   fullName: string;
   docType: DocType;
@@ -118,6 +189,42 @@ export async function crearCliente(
   }
 
   return { data: mapCliente(data as Record<string, unknown>), error: null };
+}
+
+/**
+ * Encuentra o crea un cliente al vender o reservar directo (sin pasar por
+ * un pedido formal). Solo pide nombre y teléfono — el documento y la
+ * agencia se completan después, si hace falta enviarle algo por Shalom.
+ *
+ * Busca por teléfono, no por nombre: dos clientas distintas llamadas
+ * "María" no deben terminar mezcladas en un mismo historial. Sin
+ * teléfono, siempre crea uno nuevo — es preferible un cliente de más a
+ * fusionar por error a dos personas distintas.
+ */
+export async function buscarOCrearCliente(
+  supabase: SupabaseClient,
+  storeId: string,
+  datos: { fullName: string; phone: string | null },
+): Promise<Resultado<Cliente>> {
+  const telefono = datos.phone?.trim() || null;
+
+  if (telefono) {
+    const { data } = await supabase
+      .from('customers')
+      .select(COLUMNAS_CLIENTE)
+      .eq('store_id', storeId)
+      .eq('phone', telefono)
+      .maybeSingle();
+    if (data) return { data: mapCliente(data as Record<string, unknown>), error: null };
+  }
+
+  return crearCliente(supabase, storeId, {
+    fullName: datos.fullName,
+    docType: 'DNI',
+    docNumber: null,
+    phone: telefono,
+    defaultAgencyId: null,
+  });
 }
 
 export async function actualizarCliente(
@@ -515,6 +622,8 @@ export interface PrendaParaVender extends PrendaDisponible {
   reservedForName: string | null;
   reservedForPhone: string | null;
   reservedDepositCents: number | null;
+  /** Cliente ya ligado a la reserva, si lo tiene — para sugerirlo al vender. */
+  customerId: string | null;
 }
 
 /**
@@ -535,7 +644,7 @@ export async function buscarPrendasParaVender(
   let query = supabase
     .from('items_view')
     .select(
-      'id, code, name, size_label, price_cents, photos, effective_status, reserved_for_name, reserved_for_phone, reserved_deposit_cents',
+      'id, code, name, size_label, price_cents, photos, effective_status, reserved_for_name, reserved_for_phone, reserved_deposit_cents, customer_id',
     )
     .eq('store_id', storeId)
     .in('effective_status', ['available', 'reserved'])
@@ -570,6 +679,7 @@ export async function buscarPrendasParaVender(
       reservedForName: (f.reserved_for_name as string) ?? null,
       reservedForPhone: (f.reserved_for_phone as string) ?? null,
       reservedDepositCents: (f.reserved_deposit_cents as number) ?? null,
+      customerId: (f.customer_id as string) ?? null,
     };
   });
 }

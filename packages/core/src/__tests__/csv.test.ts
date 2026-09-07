@@ -52,6 +52,7 @@ function prenda(cambios: Partial<Item> = {}): Item {
     reservedForPhone: null,
     reservedDepositCents: null,
     daysLeft: null,
+    customerId: null,
     soldAt: null,
     soldPriceCents: null,
     shareCount: 0,

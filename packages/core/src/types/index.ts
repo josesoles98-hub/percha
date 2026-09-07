@@ -122,6 +122,8 @@ export interface Item {
   /** Lo que adelantó el cliente en ESTA reserva; null si no se registró. */
   reservedDepositCents: number | null;
   daysLeft: number | null;
+  /** A qué cliente (tabla `customers`) se reservó o vendió; null si no se ligó ninguno. */
+  customerId: string | null;
 
   soldAt: string | null;
   soldPriceCents: number | null;

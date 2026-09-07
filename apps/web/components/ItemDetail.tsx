@@ -16,6 +16,8 @@ import {
   type StoreSettings,
 } from '@percha/core';
 
+import { ElegirClienteSheet, type ClienteElegido } from '@/components/clientes/ElegirClienteSheet';
+import { buscarOCrearCliente } from '@/lib/data/orders';
 import { cambiarEstado, enviarAPapelera } from '@/lib/data/mutations';
 import { createClient } from '@/lib/supabase/client';
 
@@ -60,6 +62,8 @@ export function ItemDetail({
   const [telefonoReserva, setTelefonoReserva] = useState('');
   const [depositoReserva, setDepositoReserva] = useState('');
   const [historialAbierto, setHistorialAbierto] = useState(false);
+  const [vendiendo, setVendiendo] = useState(false);
+  const [confirmandoVenta, setConfirmandoVenta] = useState(false);
   const [fotoActiva, setFotoActiva] = useState(0);
   const carruselRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +126,7 @@ export function ItemDetail({
       reservedForName?: string;
       reservedForPhone?: string;
       reservedDepositCents?: number | null;
+      customerId?: string | null;
     } = {},
   ) {
     const anterior = item.status;
@@ -139,17 +144,19 @@ export function ItemDetail({
     // Sin diálogo de confirmación: se aplica y se ofrece deshacer. Es más
     // rápido cuando cambias el estado de varias prendas seguidas.
     mostrar(soloEdicion ? 'Reserva actualizada' : STATUS_META[nuevo].label, async () => {
-      // Si solo se editaron los datos de una reserva que ya existía, deshacer
-      // debe devolver ESOS datos anteriores, no dejar la reserva en blanco.
+      // Si la prenda ESTABA reservada (se haya editado o se haya vendido
+      // desde ahí), deshacer debe devolver esos datos, no dejar la reserva
+      // en blanco — por eso se mira `anterior`, no solo `soloEdicion`.
       await cambiarEstado(
         supabase,
         item.id,
         anterior,
-        soloEdicion
+        anterior === 'reserved'
           ? {
               reservedForName: item.reservedForName ?? undefined,
               reservedForPhone: item.reservedForPhone ?? undefined,
               reservedDepositCents: item.reservedDepositCents,
+              customerId: item.customerId,
             }
           : {},
       );
@@ -161,6 +168,30 @@ export function ItemDetail({
     setTelefonoReserva('');
     setDepositoReserva('');
     router.refresh();
+  }
+
+  /** Cuando se confirma el cliente en la hoja, recién ahí se aplica la venta. */
+  async function confirmarVenta(cliente: ClienteElegido) {
+    setConfirmandoVenta(true);
+    const supabase = createClient();
+
+    let clienteId = cliente.clienteId;
+    if (!clienteId) {
+      const { data, error } = await buscarOCrearCliente(supabase, store.id, {
+        fullName: cliente.fullName,
+        phone: cliente.phone,
+      });
+      if (!data) {
+        setConfirmandoVenta(false);
+        mostrar(error ?? 'No se pudo guardar el cliente');
+        return;
+      }
+      clienteId = data.id;
+    }
+
+    setConfirmandoVenta(false);
+    setVendiendo(false);
+    await aplicarEstado('sold', { customerId: clienteId });
   }
 
   async function eliminar() {
@@ -307,7 +338,7 @@ export function ItemDetail({
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => void aplicarEstado('sold')}
+                  onClick={() => setVendiendo(true)}
                   className="tap flex-1 rounded-[--radius-control] bg-accent px-3 py-2 text-label font-medium text-accent-ink"
                 >
                   Vender
@@ -436,6 +467,7 @@ export function ItemDetail({
                 const nuevo = e.target.value as ItemStatus;
                 if (!nuevo) return;
                 if (nuevo === 'reserved') abrirReservar();
+                else if (nuevo === 'sold') setVendiendo(true);
                 else void aplicarEstado(nuevo);
               }}
               className="tap size-full rounded-[--radius-control] border border-line bg-surface px-2 text-label"
@@ -532,6 +564,25 @@ export function ItemDetail({
         fotoUrls={fotoUrls}
         abierto={compartiendo}
         onCerrar={() => setCompartiendo(false)}
+      />
+
+      <ElegirClienteSheet
+        key={vendiendo ? 'sheet-abierto' : 'sheet-cerrado'}
+        abierto={vendiendo}
+        onCerrar={() => setVendiendo(false)}
+        onConfirmar={(cliente) => void confirmarVenta(cliente)}
+        storeId={store.id}
+        titulo={`¿Quién compró "${item.name ?? item.code}"?`}
+        guardando={confirmandoVenta}
+        sugerido={
+          item.effectiveStatus === 'reserved'
+            ? {
+                clienteId: item.customerId,
+                fullName: item.reservedForName ?? '',
+                phone: item.reservedForPhone,
+              }
+            : null
+        }
       />
     </>
   );

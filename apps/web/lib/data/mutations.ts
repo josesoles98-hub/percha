@@ -98,6 +98,13 @@ export interface CambiarEstadoOpciones {
   reservedForPhone?: string | null;
   /** Lo que adelantó el cliente en esta reserva; null si no se registró. */
   reservedDepositCents?: number | null;
+  /**
+   * A qué cliente (tabla `customers`) se liga la venta o reserva. Se toca
+   * SOLO si la clave viene presente en `opciones` (aunque sea `null`): así
+   * una edición que no toca al cliente —como "Editar reserva" cambiando
+   * solo el adelanto— no lo borra por accidente.
+   */
+  customerId?: string | null;
 }
 
 /**
@@ -123,6 +130,8 @@ export async function cambiarEstado(
     payload.reserved_for_phone = opciones.reservedForPhone?.trim() || null;
     payload.reserved_deposit_cents = opciones.reservedDepositCents ?? null;
   }
+
+  if ('customerId' in opciones) payload.customer_id = opciones.customerId ?? null;
 
   const { error } = await supabase.from('items').update(payload).eq('id', id);
   return { data: null, error: error?.message ?? null };

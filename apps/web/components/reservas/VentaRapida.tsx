@@ -4,19 +4,20 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatMoney, type StoreSettings } from '@percha/core';
 
+import { ElegirClienteSheet, type ClienteElegido } from '@/components/clientes/ElegirClienteSheet';
 import { PrendaThumb } from '@/components/PrendaThumb';
 import { useToast, vibrar } from '@/components/Toast';
 import { cambiarEstado } from '@/lib/data/mutations';
-import { buscarPrendasParaVender, type PrendaParaVender } from '@/lib/data/orders';
+import { buscarOCrearCliente, buscarPrendasParaVender, type PrendaParaVender } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/client';
 
 /**
  * Lo que pasa después de cerrar una venta por WhatsApp: hay que decirle a
  * la app si la prenda se vendió o se separó, y eso significaba entrar a su
  * ficha completa cada vez. Acá es: buscar (nombre, código o marca) y tocar
- * un botón — sin ficha, sin diálogo. "Vendida" se aplica al toque (con
- * Deshacer); "Reservar" abre el flujo de reserva ya existente, que además
- * reconoce si el cliente ya tiene algo apartado.
+ * un botón — sin ficha, sin diálogo largo. "Vendida" pide el cliente (para
+ * que el historial se vaya armando solo) y se aplica con Deshacer;
+ * "Reservar" abre el flujo de reserva ya existente.
  */
 export function VentaRapida({ storeId, store }: { storeId: string; store: StoreSettings }) {
   const router = useRouter();
@@ -26,6 +27,9 @@ export function VentaRapida({ storeId, store }: { storeId: string; store: StoreS
   const [resultados, setResultados] = useState<PrendaParaVender[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [vendidas, setVendidas] = useState<Set<string>>(new Set());
+
+  const [prendaEligiendoCliente, setPrendaEligiendoCliente] = useState<PrendaParaVender | null>(null);
+  const [confirmandoVenta, setConfirmandoVenta] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -44,16 +48,39 @@ export function VentaRapida({ storeId, store }: { storeId: string; store: StoreS
     };
   }, [termino, storeId]);
 
-  async function marcarVendida(prenda: PrendaParaVender) {
+  async function confirmarVenta(cliente: ClienteElegido) {
+    const prenda = prendaEligiendoCliente;
+    if (!prenda) return;
+
+    setConfirmandoVenta(true);
+    const supabase = createClient();
+
+    // Si ya se eligió un cliente existente no hace falta buscarlo de nuevo.
+    let clienteId = cliente.clienteId;
+    if (!clienteId) {
+      const { data, error } = await buscarOCrearCliente(supabase, storeId, {
+        fullName: cliente.fullName,
+        phone: cliente.phone,
+      });
+      if (!data) {
+        setConfirmandoVenta(false);
+        mostrar(error ?? 'No se pudo guardar el cliente');
+        return;
+      }
+      clienteId = data.id;
+    }
+
+    setConfirmandoVenta(false);
+    setPrendaEligiendoCliente(null);
+
     // Optimista: desaparece de la lista al toque, para seguir con la
     // siguiente venta sin esperar a la red.
     setVendidas((previas) => new Set(previas).add(prenda.id));
     vibrar();
 
-    const supabase = createClient();
-    const { error } = await cambiarEstado(supabase, prenda.id, 'sold');
+    const { error: errorVenta } = await cambiarEstado(supabase, prenda.id, 'sold', { customerId: clienteId });
 
-    if (error) {
+    if (errorVenta) {
       setVendidas((previas) => {
         const siguiente = new Set(previas);
         siguiente.delete(prenda.id);
@@ -63,13 +90,14 @@ export function VentaRapida({ storeId, store }: { storeId: string; store: StoreS
       return;
     }
 
-    mostrar(`${prenda.name ?? prenda.code} vendida ✅`, async () => {
+    mostrar(`${prenda.name ?? prenda.code} vendida a ${cliente.fullName} ✅`, async () => {
       // Deshacer debe devolverla a como estaba, no siempre a 'available':
-      // si era una reserva, la reserva vuelve con su nombre y adelanto.
+      // si era una reserva, la reserva vuelve con su nombre, adelanto y cliente.
       await cambiarEstado(supabase, prenda.id, prenda.status, {
         reservedForName: prenda.reservedForName ?? undefined,
         reservedForPhone: prenda.reservedForPhone ?? undefined,
         reservedDepositCents: prenda.reservedDepositCents,
+        customerId: prenda.customerId,
       });
       router.refresh();
     });
@@ -126,7 +154,7 @@ export function VentaRapida({ storeId, store }: { storeId: string; store: StoreS
             <div className="flex shrink-0 flex-col gap-1.5">
               <button
                 type="button"
-                onClick={() => void marcarVendida(prenda)}
+                onClick={() => setPrendaEligiendoCliente(prenda)}
                 className="tap rounded-[--radius-control] bg-accent px-3 py-1.5 text-caption font-semibold text-accent-ink"
               >
                 Vendida
@@ -152,6 +180,25 @@ export function VentaRapida({ storeId, store }: { storeId: string; store: StoreS
           </li>
         )}
       </ul>
+
+      <ElegirClienteSheet
+        key={prendaEligiendoCliente?.id ?? 'sheet-cerrado'}
+        abierto={prendaEligiendoCliente !== null}
+        onCerrar={() => setPrendaEligiendoCliente(null)}
+        onConfirmar={(cliente) => void confirmarVenta(cliente)}
+        storeId={storeId}
+        titulo={`¿Quién compró "${prendaEligiendoCliente?.name ?? prendaEligiendoCliente?.code ?? ''}"?`}
+        guardando={confirmandoVenta}
+        sugerido={
+          prendaEligiendoCliente?.status === 'reserved'
+            ? {
+                clienteId: prendaEligiendoCliente.customerId,
+                fullName: prendaEligiendoCliente.reservedForName ?? '',
+                phone: prendaEligiendoCliente.reservedForPhone,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

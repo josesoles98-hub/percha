@@ -50,32 +50,34 @@ export default async function ClientesPage({
           <p className="max-w-xs text-muted">
             {q
               ? 'Prueba con otro nombre o documento.'
-              : 'Los clientes se guardan solos al crear el primer pedido.'}
+              : 'Los clientes se guardan solos al vender, reservar o crear el primer pedido.'}
           </p>
         </section>
       ) : (
         <ul className="space-y-2 pb-8">
           {clientes.map((cliente) => (
-            <li
-              key={cliente.id}
-              className="rounded-[--radius-card] border border-line bg-surface p-4"
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="min-w-0 truncate font-medium">{cliente.fullName}</p>
-                {cliente.totalSpentCents > 0 && (
-                  <p className="shrink-0 text-label tabular-nums text-muted">
-                    {formatMoney(cliente.totalSpentCents, { symbol: simbolo })}
-                  </p>
-                )}
-              </div>
-              <p className="mt-0.5 text-label text-muted">
-                {cliente.docNumber ? `${cliente.docType} ${cliente.docNumber}` : 'Sin documento'}
-                {cliente.phone ? ` · ${cliente.phone}` : ''}
-              </p>
-              <p className="text-caption text-muted">
-                {cliente.ordersCount} {cliente.ordersCount === 1 ? 'pedido' : 'pedidos'}
-                {cliente.defaultAgencyName ? ` · recoge en ${cliente.defaultAgencyName}` : ''}
-              </p>
+            <li key={cliente.id}>
+              <Link
+                href={`/clientes/${cliente.id}`}
+                className="tap block rounded-[--radius-card] border border-line bg-surface p-4"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate font-medium">{cliente.fullName}</p>
+                  {cliente.totalSpentCents > 0 && (
+                    <p className="shrink-0 text-label tabular-nums text-muted">
+                      {formatMoney(cliente.totalSpentCents, { symbol: simbolo })}
+                    </p>
+                  )}
+                </div>
+                <p className="mt-0.5 text-label text-muted">
+                  {cliente.docNumber ? `${cliente.docType} ${cliente.docNumber}` : 'Sin documento'}
+                  {cliente.phone ? ` · ${cliente.phone}` : ''}
+                </p>
+                <p className="text-caption text-muted">
+                  {cliente.ordersCount} {cliente.ordersCount === 1 ? 'pedido' : 'pedidos'}
+                  {cliente.defaultAgencyName ? ` · recoge en ${cliente.defaultAgencyName}` : ''}
+                </p>
+              </Link>
             </li>
           ))}
         </ul>
