@@ -308,4 +308,40 @@ describe('roles dentro de la misma tienda', () => {
       ),
     ).rejects.toThrow(/row-level security/i);
   });
+
+  it('la dueña puede registrar y ver un gasto', async () => {
+    const gasto = await banco.como(duena, async () => {
+      const { rows } = await banco.db.query<{ id: string }>(
+        `insert into public.expenses (store_id, amount_cents) values ($1, 2000) returning id`,
+        [tienda],
+      );
+      return rows[0]!.id;
+    });
+
+    const vistos = await banco.como(duena, async () => {
+      const { rows } = await banco.db.query(`select id from public.expenses where id = $1`, [gasto]);
+      return rows.length;
+    });
+
+    expect(vistos).toBe(1);
+  });
+
+  it('el vendedor NO ve ni puede registrar gastos: son de la dueña', async () => {
+    await expect(
+      banco.como(vendedor, async () =>
+        banco.db.query(`insert into public.expenses (store_id, amount_cents) values ($1, 2000)`, [
+          tienda,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/i);
+
+    const vistos = await banco.como(vendedor, async () => {
+      const { rows } = await banco.db.query(`select id from public.expenses where store_id = $1`, [
+        tienda,
+      ]);
+      return rows.length;
+    });
+
+    expect(vistos).toBe(0);
+  });
 });

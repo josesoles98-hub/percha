@@ -37,6 +37,7 @@ export default async function NuevaPrendaPage({
     if (original) {
       inicial = {
         precio: String(original.priceCents / 100),
+        costo: original.costCents !== null ? String(original.costCents / 100) : '',
         sizeId: original.sizeId,
         brandId: original.brandId,
         categoryId: original.categoryId,
@@ -55,6 +56,7 @@ export default async function NuevaPrendaPage({
         simbolo={membresia.store.currencySymbol}
         catalogos={catalogos}
         inicial={inicial}
+        puedeVerCosto={membresia.role === 'owner'}
       />
     </ToastProvider>
   );

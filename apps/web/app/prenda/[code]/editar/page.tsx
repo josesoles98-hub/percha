@@ -55,8 +55,10 @@ export default async function EditarPrendaPage({
         catalogos={catalogos}
         itemId={item.id}
         codigo={item.code}
+        puedeVerCosto={membresia.role === 'owner'}
         inicial={{
           precio: String(item.priceCents / 100),
+          costo: item.costCents !== null ? String(item.costCents / 100) : '',
           sizeId: item.sizeId,
           brandId: item.brandId,
           categoryId: item.categoryId,

@@ -50,6 +50,10 @@ export {
 } from './reservations/index';
 export type { ReserveInfo, ReserveUrgency } from './reservations/index';
 
+// ── Ganancias ─────────────────────────────────────────────────────────
+export { esDelMismoMes, summarizeProfitDays } from './finance/profit';
+export type { ExpenseCategory, ProfitDay, ProfitSummary } from './finance/profit';
+
 // ── Compartir ─────────────────────────────────────────────────────────
 export {
   PLANTILLA_RECOMENDADA,

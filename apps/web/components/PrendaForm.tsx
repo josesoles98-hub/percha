@@ -19,6 +19,7 @@ const BORRADOR_KEY = 'percha:borrador-prenda';
 
 interface Campos {
   precio: string;
+  costo: string;
   sizeId: string | null;
   brandId: string | null;
   categoryId: string | null;
@@ -30,6 +31,7 @@ interface Campos {
 
 const CAMPOS_VACIOS: Campos = {
   precio: '',
+  costo: '',
   sizeId: null,
   brandId: null,
   categoryId: null,
@@ -53,6 +55,11 @@ export interface PrendaFormProps {
   itemId?: string;
   codigo?: string;
   fotosIniciales?: FotoExistente[];
+  /**
+   * Solo la dueña ve y llena el costo: es lo que le permite calcular su
+   * ganancia real en /ganancias, y no algo que su vendedor necesite ver.
+   */
+  puedeVerCosto?: boolean;
 }
 
 /**
@@ -75,6 +82,7 @@ export function PrendaForm({
   itemId: itemIdProp,
   codigo,
   fotosIniciales = [],
+  puedeVerCosto = false,
 }: PrendaFormProps) {
   const router = useRouter();
   const { mostrar } = useToast();
@@ -137,6 +145,7 @@ export function PrendaForm({
   }, []);
 
   const priceCents = useMemo(() => parseMoneyToCents(campos.precio), [campos.precio]);
+  const costCents = useMemo(() => parseMoneyToCents(campos.costo), [campos.costo]);
   const puedeGuardar = priceCents !== null && campos.sizeId !== null && !guardando;
 
   const tallasPorGrupo = useMemo(() => {
@@ -184,6 +193,9 @@ export function PrendaForm({
       gender: campos.gender,
       name: campos.nombre.trim() || null,
       description: campos.descripcion.trim() || null,
+      // Solo se toca si la dueña puede verlo/editarlo: un vendedor no debe
+      // poder borrar (a null) el costo que la dueña ya había puesto.
+      ...(puedeVerCosto ? { costCents } : {}),
     });
 
     if (errorCampos) {
@@ -226,7 +238,7 @@ export function PrendaForm({
       gender: campos.gender,
       name: campos.nombre.trim() || null,
       description: campos.descripcion.trim() || null,
-      costCents: null,
+      costCents: puedeVerCosto ? costCents : null,
       status: 'available',
       fotos: fotosListas(),
     });
@@ -429,6 +441,30 @@ export function PrendaForm({
             />
           </div>
         </div>
+
+        {/* ── COSTO (solo dueña) ────────────────────────────────────── */}
+        {puedeVerCosto && (
+          <div>
+            <label htmlFor="costo" className="mb-2 block text-label font-medium">
+              Costo <span className="font-normal text-muted">(opcional)</span>
+            </label>
+            <div className="flex items-center gap-2 rounded-[--radius-control] border border-line bg-surface px-4 focus-within:border-accent">
+              <span className="text-title text-muted">{simbolo}</span>
+              <input
+                id="costo"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
+                value={campos.costo}
+                onChange={(e) => set('costo', e.target.value)}
+                className="w-full bg-transparent py-3 text-[1.75rem] font-semibold tabular-nums outline-none"
+              />
+            </div>
+            <p className="mt-1.5 text-caption text-muted">
+              Lo que te costó a ti. Sirve para calcular tu ganancia en el Panel de Ganancias — solo tú lo ves.
+            </p>
+          </div>
+        )}
 
         {/* ── MÁS DETALLES ──────────────────────────────────────────── */}
         <div>
