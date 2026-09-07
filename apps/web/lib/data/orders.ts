@@ -510,6 +510,70 @@ export async function buscarClientesConReserva(
   return [...porCliente.values()];
 }
 
+export interface PrendaParaVender extends PrendaDisponible {
+  status: 'available' | 'reserved';
+  reservedForName: string | null;
+  reservedForPhone: string | null;
+  reservedDepositCents: number | null;
+}
+
+/**
+ * Prendas para /vender: 'available' o 'reserved' (una reservada también se
+ * puede vender directo, cuando el cliente termina de pagarla), nunca
+ * 'sold' ni 'hidden'.
+ *
+ * Trae los datos de la reserva (nombre, teléfono, adelanto) para que, si
+ * la venta se deshace, `cambiarEstado` pueda devolverla exactamente a como
+ * estaba — no solo a 'available' cuando en realidad era una reserva.
+ */
+export async function buscarPrendasParaVender(
+  supabase: SupabaseClient,
+  storeId: string,
+  termino: string,
+  limite = 12,
+): Promise<PrendaParaVender[]> {
+  let query = supabase
+    .from('items_view')
+    .select(
+      'id, code, name, size_label, price_cents, photos, effective_status, reserved_for_name, reserved_for_phone, reserved_deposit_cents',
+    )
+    .eq('store_id', storeId)
+    .in('effective_status', ['available', 'reserved'])
+    .order('created_at', { ascending: false })
+    .limit(limite);
+
+  const limpio = termino.trim().replace(/[,()"\\*]/g, ' ').trim();
+  if (limpio) {
+    query = query.or(
+      `name.ilike.*${limpio}*,code.ilike.*${limpio}*,brand_name.ilike.*${limpio}*`,
+    );
+  }
+
+  const { data } = await query;
+  const filas = (data ?? []) as Array<Record<string, unknown>>;
+
+  const rutas = filas
+    .map((f) => (f.photos as Array<{ path: string; position: number }> | null)?.find((p) => p.position === 1)?.path)
+    .filter((p): p is string => Boolean(p));
+  const firmadas = await firmarFotos(supabase, rutas);
+
+  return filas.map((f) => {
+    const foto = (f.photos as Array<{ path: string; position: number }> | null)?.find((p) => p.position === 1);
+    return {
+      id: f.id as string,
+      code: f.code as string,
+      name: (f.name as string) ?? null,
+      sizeLabel: (f.size_label as string) ?? null,
+      priceCents: f.price_cents as number,
+      photoUrl: foto ? (firmadas.get(foto.path) ?? null) : null,
+      status: f.effective_status as 'available' | 'reserved',
+      reservedForName: (f.reserved_for_name as string) ?? null,
+      reservedForPhone: (f.reserved_for_phone as string) ?? null,
+      reservedDepositCents: (f.reserved_deposit_cents as number) ?? null,
+    };
+  });
+}
+
 export interface NuevoPedido {
   storeId: string;
   customerId: string;

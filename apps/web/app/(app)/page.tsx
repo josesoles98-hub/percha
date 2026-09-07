@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { formatMoney } from '@percha/core';
 
@@ -60,6 +61,13 @@ export default async function InventarioPage({
         catalogos={catalogos}
         simbolo={store.currencySymbol}
       />
+
+      <Link
+        href="/vender"
+        className="tap mt-3 flex items-center justify-center gap-2 rounded-[--radius-control] bg-accent px-4 py-3 font-medium text-accent-ink"
+      >
+        ⚡ Venta rápida
+      </Link>
 
       <p className="py-3 text-caption text-muted">
         {buscando ? (
