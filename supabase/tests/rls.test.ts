@@ -345,3 +345,112 @@ describe('roles dentro de la misma tienda', () => {
     expect(vistos).toBe(0);
   });
 });
+
+describe('invitar al equipo', () => {
+  let banco: BancoDePruebas;
+  let duena: string;
+  let otraDuena: string;
+  let tienda: string;
+  let otraTienda: string;
+
+  beforeAll(async () => {
+    banco = await levantarBanco();
+
+    duena = await banco.crearUsuario('duena2@tienda.pe');
+    otraDuena = await banco.crearUsuario('otra-duena@tienda.pe');
+
+    tienda = await banco.como(duena, async () => {
+      const { rows } = await banco.db.query<{ bootstrap_store: string }>(
+        `select public.bootstrap_store('Mi Tienda 2') as bootstrap_store`,
+      );
+      return rows[0]!.bootstrap_store;
+    });
+
+    otraTienda = await banco.como(otraDuena, async () => {
+      const { rows } = await banco.db.query<{ bootstrap_store: string }>(
+        `select public.bootstrap_store('Otra Tienda') as bootstrap_store`,
+      );
+      return rows[0]!.bootstrap_store;
+    });
+  });
+
+  afterAll(async () => {
+    await banco?.cerrar();
+  });
+
+  it('la dueña puede invitar a un correo a su tienda', async () => {
+    const invitados = await banco.como(duena, async () => {
+      const { rows } = await banco.db.query(
+        `insert into public.store_invites (store_id, email) values ($1, 'nueva@tienda.pe') returning id`,
+        [tienda],
+      );
+      return rows.length;
+    });
+
+    expect(invitados).toBe(1);
+  });
+
+  it('otra dueña no ve ni puede crear invitaciones de una tienda que no es la suya', async () => {
+    await expect(
+      banco.como(otraDuena, async () =>
+        banco.db.query(
+          `insert into public.store_invites (store_id, email) values ($1, 'colada@tienda.pe')`,
+          [tienda],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/i);
+
+    const vistas = await banco.como(otraDuena, async () => {
+      const { rows } = await banco.db.query(`select id from public.store_invites where store_id = $1`, [
+        tienda,
+      ]);
+      return rows.length;
+    });
+
+    expect(vistas).toBe(0);
+    void otraTienda; // usada solo para que la tienda de "otraDuena" exista y aísle el caso
+  });
+
+  it('quien se registra con un correo invitado se une a esa tienda sola, sin crear la suya', async () => {
+    await banco.como(duena, async () =>
+      banco.db.query(
+        `insert into public.store_invites (store_id, email, role) values ($1, 'vendedora-nueva@tienda.pe', 'seller')`,
+        [tienda],
+      ),
+    );
+
+    const vendedoraNueva = await banco.crearUsuario('vendedora-nueva@tienda.pe');
+
+    const tiendaUnida = await banco.como(vendedoraNueva, async () => {
+      const { rows } = await banco.db.query<{ aceptar_invitacion: string }>(
+        `select public.aceptar_invitacion() as aceptar_invitacion`,
+      );
+      return rows[0]!.aceptar_invitacion;
+    });
+
+    expect(tiendaUnida).toBe(tienda);
+
+    const rol = await banco.como(vendedoraNueva, async () => {
+      const { rows } = await banco.db.query<{ role: string }>(
+        `select role from public.store_members where store_id = $1 and user_id = $2`,
+        [tienda, vendedoraNueva],
+      );
+      return rows[0]?.role;
+    });
+
+    expect(rol).toBe('seller');
+  });
+
+  it('sin invitación pendiente, aceptar_invitacion() no une a nada', async () => {
+    const sinInvitar = await banco.crearUsuario('nadie-la-invito@tienda.pe');
+
+    const resultado = await banco.como(sinInvitar, async () => {
+      const { rows } = await banco.db.query<{ aceptar_invitacion: string | null }>(
+        `select public.aceptar_invitacion() as aceptar_invitacion`,
+      );
+      return rows[0]!.aceptar_invitacion;
+    });
+
+    expect(resultado).toBeNull();
+  });
+});

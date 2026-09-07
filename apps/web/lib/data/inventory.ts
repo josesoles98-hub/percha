@@ -30,14 +30,31 @@ export interface Membresia {
   store: StoreSettings;
 }
 
+/**
+ * Sin membresía todavía, intenta unirse solo a una tienda que la haya
+ * invitado (ver migración 0019) antes de rendirse. Sin esto, alguien
+ * invitado que entra por primera vez terminaría en /bienvenida creando
+ * SU PROPIA tienda en vez de sumarse a la de quien lo invitó.
+ */
 export async function getMembresia(supabase: SupabaseClient): Promise<Membresia | null> {
-  const { data, error } = await supabase
+  let { data } = await supabase
     .from('store_members')
     .select(`role, stores!inner(${STORE_COLUMNS})`)
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (!data) {
+    const { data: tiendaUnida } = await supabase.rpc('aceptar_invitacion');
+    if (tiendaUnida) {
+      ({ data } = await supabase
+        .from('store_members')
+        .select(`role, stores!inner(${STORE_COLUMNS})`)
+        .limit(1)
+        .maybeSingle());
+    }
+  }
+
+  if (!data) return null;
 
   const store = data.stores as unknown as StoreRow;
   return {

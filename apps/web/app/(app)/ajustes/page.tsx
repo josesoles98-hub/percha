@@ -85,15 +85,17 @@ export default async function AjustesPage() {
         <Fila href="/ajustes/modelos-tryon" icono="🧍" etiqueta="Fotos de modelos" />
       </Seccion>
 
+      {esDueno && (
+        <Seccion titulo="Equipo">
+          <Fila href="/ajustes/equipo" icono="👤" etiqueta="Miembros e invitaciones" />
+        </Seccion>
+      )}
+
       <div className="mt-3">
         <ExportarCsv storeId={storeId} store={store} />
       </div>
 
       <InstalarApp />
-
-      <p className="mt-6 px-1 text-caption text-muted">
-        El equipo y las invitaciones llegan más adelante.
-      </p>
 
       <div className="mt-8 border-t border-line pt-2 pb-8">
         <CerrarSesion />
