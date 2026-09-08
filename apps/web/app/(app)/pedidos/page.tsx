@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { ExportarPedidosCsv } from '@/components/envios/ExportarPedidosCsv';
 import { PedidosLista } from '@/components/envios/PedidosLista';
 import { getMembresia } from '@/lib/data/inventory';
-import { listarPedidos, listarPedidosDuplicados } from '@/lib/data/orders';
+import { listarPedidos, listarPedidosDuplicados, type EstadoPedido } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 
 // Los tres juntos, sin dejar ninguno por defecto: esta pantalla cambia
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-const ACTIVOS = new Set(['draft', 'confirmed', 'packed']);
+const ACTIVOS: EstadoPedido[] = ['draft', 'confirmed', 'packed'];
 
 export default async function PedidosPage({
   searchParams,
@@ -28,13 +28,14 @@ export default async function PedidosPage({
   if (!membresia) redirect('/bienvenida');
 
   const { historial } = await searchParams;
-  const [todos, duplicados] = await Promise.all([
-    listarPedidos(supabase, membresia.storeId),
+  // El filtro va en la consulta, no después: pedir SOLO los activos (el
+  // caso de todos los días) en vez de traer el historial completo para
+  // descartar la mayoría, es lo que hace que esta pantalla —la que más se
+  // abre— cargue rápido incluso con cientos de pedidos ya enviados.
+  const [pedidos, duplicados] = await Promise.all([
+    listarPedidos(supabase, membresia.storeId, historial ? 'all' : ACTIVOS),
     listarPedidosDuplicados(supabase, membresia.storeId),
   ]);
-  // Por defecto solo los activos: una vez enviado, ya cumplió su función
-  // acá y solo estorba para ver qué falta registrar.
-  const pedidos = historial ? todos : todos.filter((p) => ACTIVOS.has(p.status));
   const simbolo = membresia.store.currencySymbol;
 
   return (
@@ -42,9 +43,7 @@ export default async function PedidosPage({
       <header className="flex items-center justify-between py-4">
         <h1 className="text-title">Pedidos</h1>
         <div className="flex items-center gap-4">
-          {todos.length > 0 && (
-            <ExportarPedidosCsv storeId={membresia.storeId} store={membresia.store} />
-          )}
+          <ExportarPedidosCsv storeId={membresia.storeId} store={membresia.store} />
           <Link href="/envios" className="tap text-label underline underline-offset-4">
             Envíos
           </Link>

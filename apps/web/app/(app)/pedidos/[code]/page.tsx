@@ -17,12 +17,14 @@ export default async function PedidoPage({ params }: { params: Promise<{ code: s
   const pedido = await getPedido(supabase, membresia.storeId, code);
   if (!pedido) notFound();
 
-  const fotosCliente = pedido.customerDataSubmittedAt
-    ? await listarFotosPedido(supabase, membresia.storeId, pedido.id)
-    : [];
-  const boletaUrl = pedido.envio
-    ? await obtenerUrlBoleta(supabase, membresia.storeId, pedido.envio.id)
-    : null;
+  // En paralelo: ninguna de las dos depende de la otra, y una tras otra
+  // era una vuelta de red de más antes de poder pintar la pantalla.
+  const [fotosCliente, boletaUrl] = await Promise.all([
+    pedido.customerDataSubmittedAt
+      ? listarFotosPedido(supabase, membresia.storeId, pedido.id)
+      : Promise.resolve([]),
+    pedido.envio ? obtenerUrlBoleta(supabase, membresia.storeId, pedido.envio.id) : Promise.resolve(null),
+  ]);
 
   return (
     <FichaPedido pedido={pedido} store={membresia.store} fotosCliente={fotosCliente} boletaUrl={boletaUrl} />

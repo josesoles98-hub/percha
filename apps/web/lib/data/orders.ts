@@ -407,7 +407,7 @@ async function nombresDeAgencias(
 export async function listarPedidos(
   supabase: SupabaseClient,
   storeId: string,
-  estado?: EstadoPedido | 'all',
+  estado?: EstadoPedido | EstadoPedido[] | 'all',
 ): Promise<PedidoResumen[]> {
   let query = supabase
     .from('orders')
@@ -418,7 +418,8 @@ export async function listarPedidos(
     // tienda con miles de pedidos no tumbe la página de un tirón.
     .limit(2000);
 
-  if (estado && estado !== 'all') query = query.eq('status', estado);
+  if (Array.isArray(estado)) query = query.in('status', estado);
+  else if (estado && estado !== 'all') query = query.eq('status', estado);
 
   const { data, error } = await query;
   if (error) throw new Error(`No se pudieron cargar los pedidos: ${error.message}`);
