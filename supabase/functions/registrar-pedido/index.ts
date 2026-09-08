@@ -116,33 +116,86 @@ async function manejarPost(req: Request) {
     await supabase.from('customers').update({ phone }).eq('id', customerId);
   }
 
-  const ahora = new Date().toISOString();
-  const { data: pedido, error: pedidoError } = await supabase
+  // Si el mismo cliente ya usó este link antes y ese registro sigue
+  // "en blanco" (nadie lo tocó todavía: sigue en borrador y sin prendas
+  // asignadas), se actualiza ESE en vez de crear uno nuevo. Es lo que pasa
+  // seguido: alguien se equivoca en un dato o quiere cambiar algo y vuelve
+  // a llenar el formulario pensando que así lo corrige — sin esto, cada
+  // intento dejaba un pedido duplicado suelto que había que limpiar a mano.
+  const { data: pedidoPrevio } = await supabase
     .from('orders')
-    .insert({
-      store_id: storeId,
-      customer_id: customerId,
-      status: 'draft',
-      notes: nota,
-      customer_data_submitted_at: ahora,
-    })
     .select('id, code')
-    .single();
-  if (pedidoError || !pedido) {
-    return json({ error: 'No se pudo crear el pedido' }, 500);
+    .eq('store_id', storeId)
+    .eq('customer_id', customerId)
+    .eq('status', 'draft')
+    .not('customer_data_submitted_at', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let reusarPedidoId: string | null = null;
+  if (pedidoPrevio) {
+    const { count } = await supabase
+      .from('order_items')
+      .select('item_id', { count: 'exact', head: true })
+      .eq('order_id', pedidoPrevio.id);
+    if (!count) reusarPedidoId = pedidoPrevio.id;
   }
 
-  const { error: envioError } = await supabase.from('shipments').insert({
-    store_id: storeId,
-    order_id: pedido.id,
-    origin_agency_id: tienda.shalom_origin_agency_id,
-    destiny_agency_id: destinyAgencyId,
-    package_type: packageType,
-    packages_count: packagesCount,
-  });
-  if (envioError) {
-    await supabase.from('orders').delete().eq('id', pedido.id);
-    return json({ error: 'No se pudo registrar el envío' }, 500);
+  const ahora = new Date().toISOString();
+  let pedido: { id: string; code: string };
+  let esCorreccion = false;
+
+  if (reusarPedidoId) {
+    const { data: actualizado, error: actualizarError } = await supabase
+      .from('orders')
+      .update({ notes: nota, customer_data_submitted_at: ahora })
+      .eq('id', reusarPedidoId)
+      .select('id, code')
+      .single();
+    if (actualizarError || !actualizado) {
+      return json({ error: 'No se pudo actualizar el pedido' }, 500);
+    }
+    pedido = actualizado;
+    esCorreccion = true;
+
+    await supabase
+      .from('shipments')
+      .update({
+        destiny_agency_id: destinyAgencyId,
+        package_type: packageType,
+        packages_count: packagesCount,
+      })
+      .eq('order_id', pedido.id);
+  } else {
+    const { data: creado, error: pedidoError } = await supabase
+      .from('orders')
+      .insert({
+        store_id: storeId,
+        customer_id: customerId,
+        status: 'draft',
+        notes: nota,
+        customer_data_submitted_at: ahora,
+      })
+      .select('id, code')
+      .single();
+    if (pedidoError || !creado) {
+      return json({ error: 'No se pudo crear el pedido' }, 500);
+    }
+    pedido = creado;
+
+    const { error: envioError } = await supabase.from('shipments').insert({
+      store_id: storeId,
+      order_id: pedido.id,
+      origin_agency_id: tienda.shalom_origin_agency_id,
+      destiny_agency_id: destinyAgencyId,
+      package_type: packageType,
+      packages_count: packagesCount,
+    });
+    if (envioError) {
+      await supabase.from('orders').delete().eq('id', pedido.id);
+      return json({ error: 'No se pudo registrar el envío' }, 500);
+    }
   }
 
   const fotos = form.getAll('fotos').filter((f): f is File => f instanceof File && f.size > 0);
@@ -157,12 +210,17 @@ async function manejarPost(req: Request) {
     ),
   );
 
-  await avisarATienda(storeId, pedido.code, fullName);
+  await avisarATienda(storeId, pedido.code, fullName, esCorreccion);
 
-  return json({ ok: true, code: pedido.code });
+  return json({ ok: true, code: pedido.code, esCorreccion });
 }
 
-async function avisarATienda(storeId: string, orderCode: string, nombreCliente: string) {
+async function avisarATienda(
+  storeId: string,
+  orderCode: string,
+  nombreCliente: string,
+  esCorreccion: boolean,
+) {
   if (!VAPID_PRIVATE_KEY) return;
 
   const { data: suscripciones } = await supabase
@@ -172,8 +230,10 @@ async function avisarATienda(storeId: string, orderCode: string, nombreCliente: 
   if (!suscripciones || suscripciones.length === 0) return;
 
   const payload = JSON.stringify({
-    titulo: `Nuevo registro: ${nombreCliente}`,
-    cuerpo: `${orderCode} — toca para verlo y empacarlo.`,
+    titulo: esCorreccion ? `Corrigió su registro: ${nombreCliente}` : `Nuevo registro: ${nombreCliente}`,
+    cuerpo: esCorreccion
+      ? `${orderCode} — actualizó sus datos, no es un pedido nuevo.`
+      : `${orderCode} — toca para verlo y empacarlo.`,
     url: `/pedidos/${orderCode}`,
   });
 

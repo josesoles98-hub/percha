@@ -40,14 +40,18 @@ export async function obtenerDatosTienda(
 export async function registrarPedido(
   storeId: string,
   form: FormData,
-): Promise<{ code: string | null; error: string | null }> {
+): Promise<{ code: string | null; esCorreccion: boolean; error: string | null }> {
   form.set('storeId', storeId);
   try {
     const respuesta = await fetch(FUNCTION_URL, { method: 'POST', headers: headers(), body: form });
     const cuerpo = await respuesta.json();
-    if (!respuesta.ok) return { code: null, error: cuerpo.error ?? 'No se pudo registrar' };
-    return { code: cuerpo.code as string, error: null };
+    if (!respuesta.ok) return { code: null, esCorreccion: false, error: cuerpo.error ?? 'No se pudo registrar' };
+    return { code: cuerpo.code as string, esCorreccion: Boolean(cuerpo.esCorreccion), error: null };
   } catch {
-    return { code: null, error: 'No se pudo conectar. Revisa tu internet e intenta de nuevo.' };
+    return {
+      code: null,
+      esCorreccion: false,
+      error: 'No se pudo conectar. Revisa tu internet e intenta de nuevo.',
+    };
   }
 }

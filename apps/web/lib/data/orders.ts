@@ -844,6 +844,62 @@ export async function borrarPedido(
   return { data: null, error: error?.message ?? null };
 }
 
+export interface PedidoDuplicado {
+  id: string;
+  code: string;
+  createdAt: string;
+  notes: string | null;
+}
+
+export interface ClienteConDuplicados {
+  customerId: string;
+  customerName: string;
+  docNumber: string | null;
+  pedidos: PedidoDuplicado[];
+}
+
+/**
+ * Clientes con más de un registro propio (link de autorregistro) todavía
+ * en borrador — el resultado casi siempre de alguien que se equivocó en
+ * un dato y volvió a llenar el formulario en vez de avisar. Desde el
+ * 08/09 la Función Edge actualiza el registro en vez de duplicarlo, así
+ * que esto es sobre todo para limpiar lo que ya quedó suelto de antes.
+ */
+export async function listarPedidosDuplicados(
+  supabase: SupabaseClient,
+  storeId: string,
+): Promise<ClienteConDuplicados[]> {
+  const { data } = await supabase
+    .from('orders')
+    .select('id, code, created_at, notes, customer_id, customers!inner(full_name, doc_number)')
+    .eq('store_id', storeId)
+    .eq('status', 'draft')
+    .not('customer_data_submitted_at', 'is', null)
+    .order('created_at', { ascending: true });
+
+  const porCliente = new Map<string, ClienteConDuplicados>();
+  for (const fila of (data ?? []) as Array<Record<string, unknown>>) {
+    const cliente = fila.customers as { full_name: string; doc_number: string | null };
+    const customerId = fila.customer_id as string;
+
+    const grupo = porCliente.get(customerId) ?? {
+      customerId,
+      customerName: cliente.full_name,
+      docNumber: cliente.doc_number,
+      pedidos: [],
+    };
+    grupo.pedidos.push({
+      id: fila.id as string,
+      code: fila.code as string,
+      createdAt: fila.created_at as string,
+      notes: (fila.notes as string) ?? null,
+    });
+    porCliente.set(customerId, grupo);
+  }
+
+  return [...porCliente.values()].filter((g) => g.pedidos.length > 1);
+}
+
 // ── Envíos pendientes de exportar ─────────────────────────────────────
 
 export interface EnvioPendiente extends EnvioParaExportar {

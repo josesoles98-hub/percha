@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { ExportarPedidosCsv } from '@/components/envios/ExportarPedidosCsv';
 import { PedidosLista } from '@/components/envios/PedidosLista';
 import { getMembresia } from '@/lib/data/inventory';
-import { listarPedidos } from '@/lib/data/orders';
+import { listarPedidos, listarPedidosDuplicados } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 
 // Los tres juntos, sin dejar ninguno por defecto: esta pantalla cambia
@@ -28,7 +28,10 @@ export default async function PedidosPage({
   if (!membresia) redirect('/bienvenida');
 
   const { historial } = await searchParams;
-  const todos = await listarPedidos(supabase, membresia.storeId);
+  const [todos, duplicados] = await Promise.all([
+    listarPedidos(supabase, membresia.storeId),
+    listarPedidosDuplicados(supabase, membresia.storeId),
+  ]);
   // Por defecto solo los activos: una vez enviado, ya cumplió su función
   // acá y solo estorba para ver qué falta registrar.
   const pedidos = historial ? todos : todos.filter((p) => ACTIVOS.has(p.status));
@@ -47,6 +50,16 @@ export default async function PedidosPage({
           </Link>
         </div>
       </header>
+
+      {duplicados.length > 0 && (
+        <Link
+          href="/pedidos/duplicados"
+          className="tap mb-3 block rounded-[--radius-card] border border-status-reserved/40 bg-status-reserved/10 p-3 text-label"
+        >
+          ⚠️ {duplicados.length} {duplicados.length === 1 ? 'cliente' : 'clientes'} con registros
+          duplicados — revisar ›
+        </Link>
+      )}
 
       <p className="-mt-2 mb-3 text-caption text-muted">
         {historial ? (

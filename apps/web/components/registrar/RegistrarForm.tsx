@@ -34,6 +34,7 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
 
   const [enviando, setEnviando] = useState(false);
   const [codigo, setCodigo] = useState<string | null>(null);
+  const [fueCorreccion, setFueCorreccion] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
     form.set('packagesCount', '1');
     fotos.forEach((f, i) => form.append('fotos', f.blob, `foto-${i + 1}.jpg`));
 
-    const { code, error: errorEnvio } = await registrarPedido(storeId, form);
+    const { code, esCorreccion, error: errorEnvio } = await registrarPedido(storeId, form);
     setEnviando(false);
 
     if (!code) {
@@ -111,6 +112,7 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
       return;
     }
     setCodigo(code);
+    setFueCorreccion(esCorreccion);
   }
 
   const agenciasFiltradas = (datos?.agencias ?? []).filter((a) =>
@@ -138,9 +140,18 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
         <div className="text-5xl" aria-hidden>
           ✅
         </div>
-        <p className="mt-3 text-title">¡Registrado!</p>
+        <p className="mt-3 text-title">{fueCorreccion ? '¡Actualizado!' : '¡Registrado!'}</p>
         <p className="mt-1 text-label text-muted">
-          Tu pedido <strong className="text-ink">{codigo}</strong> quedó registrado.{' '}
+          {fueCorreccion ? (
+            <>
+              Ya corregimos los datos de tu pedido{' '}
+              <strong className="text-ink">{codigo}</strong> — no se creó uno nuevo.
+            </>
+          ) : (
+            <>
+              Tu pedido <strong className="text-ink">{codigo}</strong> quedó registrado.
+            </>
+          )}{' '}
           {datos.storeName} se encargará del resto.
         </p>
       </Centro>
