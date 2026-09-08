@@ -33,8 +33,24 @@ function fechaCorta(fecha: Date): string {
 export function RotuloCard({ datos }: { datos: DatosRotulo }) {
   return (
     <div className="rounded-none border-2 border-ink p-4 print:border-black">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-tienda.jpg" alt="" aria-hidden className="mx-auto mb-4 h-auto w-3/4 max-w-56 invert" />
+      {/*
+        El archivo logo-tienda.jpg trae de fábrica ~32% de fondo negro en
+        blanco arriba del texto (y casi nada abajo) — mostrado entero eso
+        se traducía en un salto de espacio antes del logo. Se recorta con
+        CSS, sin tocar el archivo: el contenedor usa el aspect-ratio de
+        SOLO el texto (medido en el archivo real, 715×257 de los 715×380
+        totales) y `object-bottom` alinea la imagen contra el borde de
+        abajo, dejando fuera de vista justo esa franja vacía de arriba.
+      */}
+      <div className="relative mx-auto mb-3 aspect-[715/257] w-3/4 max-w-56 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-tienda.jpg"
+          alt=""
+          aria-hidden
+          className="absolute inset-0 size-full object-cover object-bottom invert"
+        />
+      </div>
 
       <Campo etiqueta="Destino" valor={datos.destinyAgencyName ?? '—'} grande />
       <Campo etiqueta="Destinatario" valor={datos.customerName} />
