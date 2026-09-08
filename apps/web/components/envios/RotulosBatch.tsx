@@ -85,7 +85,6 @@ export function RotulosBatch({ envios: enviosIniciales }: { envios: EnvioPendien
                   docNumber: envio.docNumber,
                   phone: envio.phone,
                   orderCode: envio.orderCode,
-                  packagesCount: envio.packagesCount,
                 }}
               />
             </div>

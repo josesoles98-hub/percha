@@ -63,7 +63,6 @@ export function RotuloPedido({ pedido, store }: { pedido: Pedido; store: StoreSe
           docNumber: pedido.customer?.docNumber,
           phone: pedido.customer?.phone,
           orderCode: pedido.code,
-          packagesCount: envio.packagesCount,
         }}
       />
 
