@@ -45,7 +45,7 @@ export function RotulosBatch({ envios: enviosIniciales }: { envios: EnvioPendien
 
   return (
     <div className="mx-auto max-w-md px-4 pb-10 pt-safe">
-      <style>{'@page { size: 100mm 100mm; margin: 5mm; }'}</style>
+      <style>{'@page { size: 100mm 100mm; margin: 3mm; }'}</style>
 
       <header className="flex items-center justify-between py-3 print:hidden">
         <button type="button" onClick={() => router.back()} className="tap text-label text-muted">
