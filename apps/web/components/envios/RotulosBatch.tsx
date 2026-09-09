@@ -49,7 +49,7 @@ export function RotulosBatch({ envios: enviosIniciales }: { envios: EnvioPendien
   return (
     <div className="mx-auto max-w-md px-4 pb-10 pt-safe print:max-w-none">
       {/* Sin tamaño fijo en modo A4: se deja el que tenga cargado la impresora. */}
-      {!modoA4 && <style>{'@page { size: 100mm 100mm; margin: 3mm; }'}</style>}
+      {!modoA4 && <style>{'@page { size: 100mm 100mm; margin: 5mm; }'}</style>}
       {modoA4 && <style>{'@page { margin: 10mm; }'}</style>}
 
       <header className="flex items-center justify-between py-3 print:hidden">

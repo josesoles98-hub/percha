@@ -34,7 +34,7 @@ export function RotuloCard({ datos }: { datos: DatosRotulo }) {
   return (
     // break-inside-avoid: si por lo que sea no cupiera entera, que la
     // corte a ella el navegador donde toca, no a la mitad.
-    <div className="break-inside-avoid rounded-none border-2 border-ink p-2 print:border-black">
+    <div className="break-inside-avoid rounded-none border-2 border-ink p-3 print:border-black">
       {/*
         El archivo logo-tienda.jpg trae de fábrica ~32% de fondo negro en
         blanco arriba del texto (y casi nada abajo) — mostrado entero eso
@@ -44,7 +44,7 @@ export function RotuloCard({ datos }: { datos: DatosRotulo }) {
         totales) y `object-bottom` alinea la imagen contra el borde de
         abajo, dejando fuera de vista justo esa franja vacía de arriba.
       */}
-      <div className="relative mx-auto mb-1.5 aspect-[715/257] w-2/5 max-w-32 overflow-hidden">
+      <div className="relative mx-auto mb-2 aspect-[715/257] w-1/2 max-w-40 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo-tienda.jpg"
@@ -59,9 +59,9 @@ export function RotuloCard({ datos }: { datos: DatosRotulo }) {
       {datos.docNumber && <Campo etiqueta={datos.docType ?? 'DNI'} valor={datos.docNumber} />}
       {datos.phone && <Campo etiqueta="WhatsApp" valor={datos.phone} />}
 
-      <div className="mt-1 flex items-end justify-between gap-2">
+      <div className="mt-1.5 flex items-end justify-between gap-2">
         <Campo etiqueta="Pedido" valor={datos.orderCode} />
-        <p className="text-caption font-bold tabular-nums">{fechaCorta(new Date())}</p>
+        <p className="pb-0.5 text-label font-bold tabular-nums">{fechaCorta(new Date())}</p>
       </div>
     </div>
   );
@@ -69,9 +69,9 @@ export function RotuloCard({ datos }: { datos: DatosRotulo }) {
 
 function Campo({ etiqueta, valor, grande }: { etiqueta: string; valor: string; grande?: boolean }) {
   return (
-    <div className="mt-1 first:mt-0">
-      <p className="text-caption uppercase leading-none tracking-wide text-muted">{etiqueta}</p>
-      <p className={`font-bold leading-tight ${grande ? 'text-[1.0625rem]' : 'text-caption'}`}>{valor}</p>
+    <div className="mt-1.5 first:mt-0">
+      <p className="text-caption uppercase leading-tight tracking-wide text-muted">{etiqueta}</p>
+      <p className={`font-bold leading-tight ${grande ? 'text-title' : 'text-label'}`}>{valor}</p>
     </div>
   );
 }
