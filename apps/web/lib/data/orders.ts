@@ -966,6 +966,96 @@ export async function listarEnviosPendientes(
   });
 }
 
+export interface EnvioPorDocumento {
+  orderCode: string;
+  customerName: string;
+  docType: string;
+  docNumber: string;
+  phone: string | null;
+  destinyAgency: string | null;
+  packageType: string;
+  packagesCount: number;
+  /**
+   * El envío ya está registrado en Shalom (o más allá). 'exported' NO
+   * cuenta: solo significa que salió en un Excel, y justamente los que
+   * rebotan quedan en 'exported'.
+   */
+  yaRegistrado: boolean;
+}
+
+const ENVIO_YA_REGISTRADO = new Set(['registered', 'in_transit', 'delivered']);
+
+/**
+ * Busca los pedidos de una lista de documentos (DNI/RUC/CE), para cuando
+ * Shalom rebota filas del Excel masivo diciendo "documento X no está
+ * registrado" y hay que registrarlas a mano: en vez de buscarlas una por
+ * una, se pega la lista y salen todas juntas con lo que hace falta.
+ *
+ * Devuelve también qué documentos NO tienen pedido, para no dejarla
+ * adivinando cuáles faltan.
+ */
+export async function buscarEnviosPorDocumento(
+  supabase: SupabaseClient,
+  storeId: string,
+  documentos: string[],
+): Promise<{ encontrados: EnvioPorDocumento[]; sinResultado: string[] }> {
+  const docs = [...new Set(documentos.map((d) => d.trim()).filter(Boolean))];
+  if (docs.length === 0) return { encontrados: [], sinResultado: [] };
+
+  const { data: clientes } = await supabase
+    .from('customers')
+    .select('id, full_name, doc_type, doc_number, phone')
+    .eq('store_id', storeId)
+    .in('doc_number', docs);
+
+  const porId = new Map(
+    (clientes ?? []).map((c) => [c.id as string, c as Record<string, unknown>]),
+  );
+  const docsConCliente = new Set((clientes ?? []).map((c) => c.doc_number as string));
+
+  const pedidos =
+    porId.size === 0
+      ? []
+      : (
+          (
+            await supabase
+              .from('orders')
+              .select('code, customer_id, shipments ( destiny_agency_id, package_type, packages_count, status )')
+              .eq('store_id', storeId)
+              .in('customer_id', [...porId.keys()])
+              .order('created_at', { ascending: true })
+          ).data ?? []
+        );
+
+  const filas = pedidos as Array<Record<string, unknown>>;
+  const agencias = await nombresDeAgencias(
+    supabase,
+    filas.flatMap((p) =>
+      ((p.shipments ?? []) as Array<Record<string, unknown>>).map((e) => e.destiny_agency_id as number),
+    ),
+  );
+
+  const encontrados: EnvioPorDocumento[] = [];
+  for (const pedido of filas) {
+    const cliente = porId.get(pedido.customer_id as string);
+    if (!cliente) continue;
+    const envio = ((pedido.shipments ?? []) as Array<Record<string, unknown>>)[0];
+    encontrados.push({
+      orderCode: pedido.code as string,
+      customerName: (cliente.full_name as string) ?? '',
+      docType: (cliente.doc_type as string) ?? 'DNI',
+      docNumber: (cliente.doc_number as string) ?? '',
+      phone: (cliente.phone as string) ?? null,
+      destinyAgency: envio ? (agencias.get(envio.destiny_agency_id as number) ?? null) : null,
+      packageType: (envio?.package_type as string) ?? '',
+      packagesCount: (envio?.packages_count as number) ?? 1,
+      yaRegistrado: envio ? ENVIO_YA_REGISTRADO.has(envio.status as string) : false,
+    });
+  }
+
+  return { encontrados, sinResultado: docs.filter((d) => !docsConCliente.has(d)) };
+}
+
 /** Marca uno o varios envíos como "rótulo ya impreso". */
 export async function marcarRotuloImpreso(
   supabase: SupabaseClient,

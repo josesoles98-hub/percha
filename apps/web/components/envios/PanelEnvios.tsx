@@ -17,6 +17,7 @@ import {
 import { descargar, generarArchivos } from '@/lib/shipping/generar-excel';
 import { createClient } from '@/lib/supabase/client';
 
+import { BuscarPorDni } from './BuscarPorDni';
 import { ImportarBoletas } from './ImportarBoletas';
 
 /**
@@ -280,6 +281,17 @@ export function PanelEnvios({
           )}
         </section>
       )}
+
+      <section className="mt-8">
+        <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
+          Buscar por DNI (rebotes de Shalom)
+        </h2>
+        <p className="mb-2 text-label text-muted">
+          Si Shalom rechazó filas porque el documento no está registrado, pega aquí ese mensaje (o
+          los DNI) y salen todos esos pedidos juntos para registrarlos a mano.
+        </p>
+        <BuscarPorDni storeId={storeId} />
+      </section>
 
       <section className={`mt-8 ${lotes.length === 0 ? 'pb-8' : ''}`}>
         <h2 className="mb-2 text-caption font-medium uppercase tracking-wide text-muted">
