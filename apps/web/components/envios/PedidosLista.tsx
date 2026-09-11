@@ -193,9 +193,22 @@ export function PedidosLista({
     <>
       <div className="mb-3 flex items-center justify-between gap-2">
         {modoSeleccion ? (
-          <p className="text-label text-muted">
-            {seleccionados.size} {seleccionados.size === 1 ? 'seleccionado' : 'seleccionados'}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-label text-muted">
+              {seleccionados.size} {seleccionados.size === 1 ? 'seleccionado' : 'seleccionados'}
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                setSeleccionados((previos) =>
+                  previos.size === pedidos.length ? new Set() : new Set(pedidos.map((p) => p.id)),
+                )
+              }
+              className="tap text-label text-accent underline underline-offset-4"
+            >
+              {seleccionados.size === pedidos.length ? 'Ninguno' : 'Todos'}
+            </button>
+          </div>
         ) : (
           <button
             type="button"
@@ -278,7 +291,10 @@ export function PedidosLista({
       </ul>
 
       {modoSeleccion && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 px-3 py-3 pb-safe backdrop-blur">
+        // z-50: por encima de la barra de navegación inferior (z-40) — con el
+        // mismo z-index, la de navegación queda pintada después en el layout
+        // y esta tapaba por completo los botones de abajo.
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-bg/95 px-3 py-3 pb-safe backdrop-blur">
           <div className="mx-auto flex max-w-3xl gap-1.5">
             <button
               type="button"
