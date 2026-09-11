@@ -132,6 +132,39 @@ export function PedidosLista({
     salirDeSeleccion();
   }
 
+  /**
+   * "Vendidos" = confirmar el pedido: es el paso que de verdad marca las
+   * prendas como vendidas en el inventario (ver el trigger de la migración
+   * de pedidos). Solo aplica a los que siguen en borrador — uno ya
+   * confirmado, empacado o enviado ya pasó por ahí.
+   */
+  async function marcarSeleccionadosVendidos() {
+    const objetivo = pedidos.filter((p) => seleccionados.has(p.id) && p.status === 'draft');
+    if (objetivo.length === 0) return salirDeSeleccion();
+
+    setAplicando(true);
+    const supabase = createClient();
+    const idsOk: string[] = [];
+
+    for (const pedido of objetivo) {
+      const { error } = await cambiarEstadoPedido(supabase, pedido.id, 'confirmed');
+      if (!error) idsOk.push(pedido.id);
+    }
+
+    setPedidos((previos) =>
+      previos.map((p) => (idsOk.includes(p.id) ? { ...p, status: 'confirmed' } : p)),
+    );
+    setAplicando(false);
+    vibrar();
+    mostrar(
+      idsOk.length === objetivo.length
+        ? `${idsOk.length} pedidos marcados como vendidos`
+        : `${idsOk.length} de ${objetivo.length} marcados — revisa el resto`,
+    );
+    salirDeSeleccion();
+    router.refresh();
+  }
+
   async function alternarEmpacado(pedido: PedidoResumen) {
     const yaEmpacado = Boolean(pedido.packedAt);
 
@@ -245,20 +278,29 @@ export function PedidosLista({
       </ul>
 
       {modoSeleccion && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 px-4 py-3 pb-safe backdrop-blur">
-          <div className="mx-auto flex max-w-3xl gap-2">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 px-3 py-3 pb-safe backdrop-blur">
+          <div className="mx-auto flex max-w-3xl gap-1.5">
             <button
               type="button"
               onClick={salirDeSeleccion}
-              className="tap rounded-[--radius-control] border border-line bg-surface px-4 py-3 text-label"
+              aria-label="Cancelar selección"
+              className="tap shrink-0 rounded-[--radius-control] border border-line bg-surface px-3 py-3 text-label"
             >
-              Cancelar
+              ✕
+            </button>
+            <button
+              type="button"
+              onClick={() => void marcarSeleccionadosVendidos()}
+              disabled={aplicando || seleccionados.size === 0}
+              className="tap flex-1 rounded-[--radius-control] border border-line bg-surface px-2 py-3 text-caption font-medium disabled:opacity-40"
+            >
+              ✅ Vendidos
             </button>
             <button
               type="button"
               onClick={() => void marcarSeleccionadosEmpacados()}
               disabled={aplicando || seleccionados.size === 0}
-              className="tap flex-1 rounded-[--radius-control] border border-line bg-surface px-4 py-3 text-label font-medium disabled:opacity-40"
+              className="tap flex-1 rounded-[--radius-control] border border-line bg-surface px-2 py-3 text-caption font-medium disabled:opacity-40"
             >
               📦 Empacados
             </button>
@@ -266,7 +308,7 @@ export function PedidosLista({
               type="button"
               onClick={() => void marcarSeleccionadosEnviados()}
               disabled={aplicando || seleccionados.size === 0}
-              className="tap flex-1 rounded-[--radius-control] bg-accent px-4 py-3 text-label font-medium text-accent-ink disabled:opacity-40"
+              className="tap flex-1 rounded-[--radius-control] bg-accent px-2 py-3 text-caption font-medium text-accent-ink disabled:opacity-40"
             >
               🚚 Enviados
             </button>
