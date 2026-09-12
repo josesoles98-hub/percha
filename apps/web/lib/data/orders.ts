@@ -907,6 +907,12 @@ export interface EnvioPendiente extends EnvioParaExportar {
   shipmentId: string;
   orderId: string;
   labelPrintedAt: string | null;
+  /**
+   * Cuándo el cliente puso sus datos (autorregistro) — o, si la dueña
+   * armó el pedido ella misma, cuándo se creó. Para reconocer de un
+   * vistazo a quién le llegó el link después de cierta hora.
+   */
+  registeredAt: string;
 }
 
 /**
@@ -923,7 +929,10 @@ export async function listarEnviosPendientes(
       id, order_id, origin_agency_id, destiny_agency_id, package_type,
       height_cm, width_cm, length_cm, weight_kg, packages_count,
       contact_doc, contact_phone, grr_number, label_printed_at,
-      orders!inner ( code, customers ( full_name, doc_type, doc_number, phone ) )
+      orders!inner (
+        code, created_at, customer_data_submitted_at,
+        customers ( full_name, doc_type, doc_number, phone )
+      )
     `)
     .eq('store_id', storeId)
     .eq('status', 'pending')
@@ -962,6 +971,8 @@ export async function listarEnviosPendientes(
       contactPhone: (f.contact_phone as string) ?? null,
       grrNumber: (f.grr_number as string) ?? null,
       labelPrintedAt: (f.label_printed_at as string) ?? null,
+      registeredAt:
+        (pedido.customer_data_submitted_at as string) ?? (pedido.created_at as string),
     };
   });
 }

@@ -25,6 +25,7 @@ const ENVIOS_DEMO: EnvioPendiente[] = [
     contactPhone: null,
     grrNumber: null,
     labelPrintedAt: new Date().toISOString(),
+    registeredAt: new Date().toISOString(),
   },
   {
     id: '2',
@@ -47,6 +48,7 @@ const ENVIOS_DEMO: EnvioPendiente[] = [
     contactPhone: null,
     grrNumber: null,
     labelPrintedAt: null,
+    registeredAt: new Date().toISOString(),
   },
 ];
 

@@ -291,6 +291,9 @@ export function PanelEnvios({
                         → {envio.destinyAgency ?? 'sin destino'} · {envio.packageType} ·{' '}
                         {envio.packagesCount}
                       </p>
+                      <p className="text-caption text-muted">
+                        Se registró: {formatDateTime(envio.registeredAt)}
+                      </p>
 
                       {suyos.length > 0 && (
                         <ul className="mt-2 space-y-0.5">
