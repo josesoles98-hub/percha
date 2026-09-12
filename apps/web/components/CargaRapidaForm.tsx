@@ -228,7 +228,11 @@ function TarjetaCargaRapida({
 
   const priceCents = parseMoneyToCents(precio);
   const costCents = parseMoneyToCents(costo);
-  const puedeGuardar = priceCents !== null && sizeId !== null && !guardando;
+  // !fotos.subiendo es lo que evita el bug real: si se guarda mientras una
+  // foto todavía está subiendo, esa foto se pierde para siempre (la tarjeta
+  // desaparece de la lista de pendientes al guardar, y con ella el archivo
+  // en memoria) — la prenda queda con menos de las 3 fotos sin ningún aviso.
+  const puedeGuardar = priceCents !== null && sizeId !== null && !guardando && !fotos.subiendo;
 
   async function guardar() {
     if (!puedeGuardar) return;
@@ -290,10 +294,17 @@ function TarjetaCargaRapida({
               {foto?.previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- objectURL local
                 <img src={foto.previewUrl} alt="" className="size-full object-cover" />
+              ) : foto?.estado === 'error' ? (
+                <button
+                  type="button"
+                  onClick={() => fotos.reintentar(indice + 1)}
+                  className="tap flex size-full flex-col items-center justify-center gap-0.5 text-caption text-status-sold"
+                >
+                  <span aria-hidden>✕</span>
+                  <span className="underline underline-offset-2">Reintentar</span>
+                </button>
               ) : (
-                <div className="flex size-full items-center justify-center text-caption text-muted">
-                  {foto?.estado === 'error' ? '✕' : '…'}
-                </div>
+                <div className="flex size-full items-center justify-center text-caption text-muted">…</div>
               )}
             </div>
           );
@@ -418,7 +429,7 @@ function TarjetaCargaRapida({
         disabled={!puedeGuardar}
         className="tap mt-3 w-full rounded-[--radius-control] bg-accent px-4 py-2.5 text-label font-medium text-accent-ink disabled:opacity-40"
       >
-        {guardando ? 'Guardando…' : 'Guardar'}
+        {guardando ? 'Guardando…' : fotos.subiendo ? 'Subiendo fotos…' : 'Guardar'}
       </button>
     </div>
   );

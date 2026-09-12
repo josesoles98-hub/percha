@@ -146,7 +146,10 @@ export function PrendaForm({
 
   const priceCents = useMemo(() => parseMoneyToCents(campos.precio), [campos.precio]);
   const costCents = useMemo(() => parseMoneyToCents(campos.costo), [campos.costo]);
-  const puedeGuardar = priceCents !== null && campos.sizeId !== null && !guardando;
+  // !fotos.subiendo: si se guarda mientras una foto sigue subiendo, esa foto
+  // se pierde sin aviso (el guardado solo manda fotos.listas en ese instante).
+  const puedeGuardar =
+    priceCents !== null && campos.sizeId !== null && !guardando && !fotos.subiendo;
 
   const tallasPorGrupo = useMemo(() => {
     const grupos = new Map<string, Catalogos['sizes']>();
@@ -314,7 +317,7 @@ export function PrendaForm({
 
         {fotos.subiendo && (
           <p className="-mt-5 text-caption text-muted">
-            Subiendo fotos… puedes seguir llenando, no hace falta esperar.
+            Subiendo fotos… puedes seguir llenando; Guardar esperará a que terminen.
           </p>
         )}
 
@@ -598,7 +601,7 @@ export function PrendaForm({
             disabled={!puedeGuardar}
             className="tap w-full rounded-[--radius-control] bg-accent px-4 py-3 font-medium text-accent-ink disabled:opacity-40"
           >
-            {guardando ? 'Guardando…' : 'Guardar cambios'}
+            {guardando ? 'Guardando…' : fotos.subiendo ? 'Subiendo fotos…' : 'Guardar cambios'}
           </button>
         ) : (
           <>
@@ -609,7 +612,7 @@ export function PrendaForm({
                 disabled={!puedeGuardar}
                 className="tap flex-1 rounded-[--radius-control] border border-line bg-surface px-4 py-3 font-medium disabled:opacity-40"
               >
-                {guardando ? 'Guardando…' : 'Guardar'}
+                {guardando ? 'Guardando…' : fotos.subiendo ? 'Subiendo…' : 'Guardar'}
               </button>
               <button
                 type="button"
@@ -617,7 +620,7 @@ export function PrendaForm({
                 disabled={!puedeGuardar}
                 className="tap flex-2 rounded-[--radius-control] bg-accent px-4 py-3 font-medium text-accent-ink disabled:opacity-40"
               >
-                Guardar y compartir
+                {fotos.subiendo ? 'Subiendo fotos…' : 'Guardar y compartir'}
               </button>
             </div>
             <button
@@ -626,7 +629,7 @@ export function PrendaForm({
               disabled={!puedeGuardar}
               className="tap w-full text-caption text-muted disabled:opacity-40"
             >
-              Guardar y seguir cargando
+              {fotos.subiendo ? 'Subiendo fotos…' : 'Guardar y seguir cargando'}
             </button>
           </>
         )}
