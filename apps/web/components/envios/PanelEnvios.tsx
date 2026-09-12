@@ -46,7 +46,16 @@ export function PanelEnvios({
   const [pendientes, setPendientes] = useState(pendientesIniciales);
   const [generando, setGenerando] = useState(false);
 
+  // Elegir a mano cuáles van en el Excel — para cuando no se quiere
+  // registrar TODO lo pendiente de una: por ejemplo, dejar aparte a los
+  // que se autorregistraron después de dejar de aceptar pedidos nuevos, y
+  // enviarlos recién en la siguiente tanda.
+  const [modoSeleccion, setModoSeleccion] = useState(false);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+
   const { validos, problemas } = useMemo(() => enviosValidos(pendientes), [pendientes]);
+
+  const objetivoGenerar = modoSeleccion ? validos.filter((v) => seleccionados.has(v.id)) : validos;
 
   const problemasPorEnvio = useMemo(() => {
     const mapa = new Map<string, string[]>();
@@ -56,14 +65,28 @@ export function PanelEnvios({
     return mapa;
   }, [problemas]);
 
-  const archivosPrevistos = Math.ceil(validos.length / 499) || 0;
+  const archivosPrevistos = Math.ceil(objetivoGenerar.length / 499) || 0;
+
+  function salirDeSeleccion() {
+    setModoSeleccion(false);
+    setSeleccionados(new Set());
+  }
+
+  function alternarSeleccion(id: string) {
+    setSeleccionados((previos) => {
+      const siguiente = new Set(previos);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
+  }
 
   async function generar() {
-    if (validos.length === 0) return;
+    if (objetivoGenerar.length === 0) return;
     setGenerando(true);
 
     try {
-      const archivos = await generarArchivos(validos);
+      const archivos = await generarArchivos(objetivoGenerar);
       const supabase = createClient();
 
       // Un lote por archivo: si se parte en dos, cada uno se sube y se
@@ -85,6 +108,7 @@ export function PanelEnvios({
       );
 
       setPendientes(await listarEnviosPendientes(supabase, storeId));
+      salirDeSeleccion();
       router.refresh();
     } catch (error) {
       mostrar(error instanceof Error ? error.message : 'No se pudo generar el archivo');
@@ -174,7 +198,7 @@ export function PanelEnvios({
           <h2 className="text-caption font-medium uppercase tracking-wide text-muted">
             Pendientes de registrar ({pendientes.length})
           </h2>
-          {pendientes.length > 0 && (
+          {pendientes.length > 0 && !modoSeleccion && (
             <div className="flex shrink-0 gap-3">
               <Link href="/envios/rotulos" className="tap text-caption underline underline-offset-4">
                 🏷️ Rótulos
@@ -185,6 +209,46 @@ export function PanelEnvios({
             </div>
           )}
         </div>
+
+        {validos.length > 0 && (
+          <div className="mb-2 flex items-center gap-3">
+            {modoSeleccion ? (
+              <>
+                <p className="text-caption text-muted">
+                  {seleccionados.size} {seleccionados.size === 1 ? 'elegido' : 'elegidos'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSeleccionados((previos) =>
+                      previos.size === validos.length
+                        ? new Set()
+                        : new Set(validos.map((v) => v.id)),
+                    )
+                  }
+                  className="tap text-caption text-accent underline underline-offset-4"
+                >
+                  {seleccionados.size === validos.length ? 'Ninguno' : 'Todos'}
+                </button>
+                <button
+                  type="button"
+                  onClick={salirDeSeleccion}
+                  className="tap text-caption text-muted underline underline-offset-4"
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setModoSeleccion(true)}
+                className="tap text-caption text-accent underline underline-offset-4"
+              >
+                Elegir cuáles registrar (en vez de todos)
+              </button>
+            )}
+          </div>
+        )}
 
         {pendientes.length === 0 ? (
           <div className="rounded-[--radius-card] border border-line bg-surface p-6 text-center">
@@ -202,11 +266,17 @@ export function PanelEnvios({
               const suyos = problemasPorEnvio.get(envio.id) ?? [];
               const correcto = suyos.length === 0;
 
+              const marcado = seleccionados.has(envio.id);
+
               return (
                 <li
                   key={envio.id}
                   className={`rounded-[--radius-card] border p-4 ${
-                    correcto ? 'border-line bg-surface' : 'border-status-reserved/50 bg-status-reserved/10'
+                    modoSeleccion && marcado
+                      ? 'border-accent bg-accent/10'
+                      : correcto
+                        ? 'border-line bg-surface'
+                        : 'border-status-reserved/50 bg-status-reserved/10'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -241,6 +311,19 @@ export function PanelEnvios({
                         </Link>
                       )}
                     </div>
+
+                    {modoSeleccion && correcto && (
+                      <button
+                        type="button"
+                        onClick={() => alternarSeleccion(envio.id)}
+                        aria-label={marcado ? 'Quitar de la selección' : 'Agregar a la selección'}
+                        className={`tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-label ${
+                          marcado ? 'border-accent bg-accent text-accent-ink' : 'border-line bg-bg'
+                        }`}
+                      >
+                        {marcado ? '✓' : ''}
+                      </button>
+                    )}
                   </div>
                 </li>
               );
@@ -261,12 +344,21 @@ export function PanelEnvios({
           <button
             type="button"
             onClick={() => void generar()}
-            disabled={generando || validos.length === 0 || !agenciaOrigen}
+            disabled={generando || objetivoGenerar.length === 0 || !agenciaOrigen}
             className="tap w-full rounded-[--radius-control] bg-accent px-4 py-3.5 font-semibold text-accent-ink disabled:opacity-40"
           >
-            {generando ? 'Generando…' : `⬇️ Generar Excel para Shalom (${validos.length})`}
+            {generando
+              ? 'Generando…'
+              : modoSeleccion
+                ? `⬇️ Generar Excel con los elegidos (${objetivoGenerar.length})`
+                : `⬇️ Generar Excel para Shalom (${objetivoGenerar.length})`}
           </button>
 
+          {modoSeleccion && validos.length - objetivoGenerar.length > 0 && (
+            <p className="mt-2 text-caption text-muted">
+              {validos.length - objetivoGenerar.length} sin elegir se quedan pendientes para después.
+            </p>
+          )}
           {problemas.length > 0 && (
             <p className="mt-2 text-caption text-muted">
               {pendientes.length - validos.length}{' '}
