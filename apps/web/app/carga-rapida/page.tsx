@@ -29,6 +29,7 @@ export default async function CargaRapidaPage() {
         storeId={membresia.storeId}
         simbolo={membresia.store.currencySymbol}
         catalogos={catalogos}
+        puedeVerCosto={membresia.role === 'owner'}
       />
     </ToastProvider>
   );

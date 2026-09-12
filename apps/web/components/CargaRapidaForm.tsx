@@ -36,10 +36,13 @@ export function CargaRapidaForm({
   storeId,
   simbolo,
   catalogos,
+  puedeVerCosto = false,
 }: {
   storeId: string;
   simbolo: string;
   catalogos: Catalogos;
+  /** Solo la dueña carga costo — igual que en el alta normal (PrendaForm). */
+  puedeVerCosto?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [porGrupo, setPorGrupo] = useState<2 | 3>(3);
@@ -156,6 +159,7 @@ export function CargaRapidaForm({
             storeId={storeId}
             simbolo={simbolo}
             catalogos={catalogos}
+            puedeVerCosto={puedeVerCosto}
             onGuardada={() => marcarGuardada(grupo.id)}
           />
         ))}
@@ -183,12 +187,14 @@ function TarjetaCargaRapida({
   storeId,
   simbolo,
   catalogos,
+  puedeVerCosto,
   onGuardada,
 }: {
   grupo: Grupo;
   storeId: string;
   simbolo: string;
   catalogos: Catalogos;
+  puedeVerCosto: boolean;
   onGuardada: () => void;
 }) {
   const { mostrar } = useToast();
@@ -208,6 +214,7 @@ function TarjetaCargaRapida({
   const [brandId, setBrandId] = useState<string | null>(null);
   const [marcaNueva, setMarcaNueva] = useState('');
   const [precio, setPrecio] = useState('');
+  const [costo, setCosto] = useState('');
   const [calzadoAbierto, setCalzadoAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
@@ -220,6 +227,7 @@ function TarjetaCargaRapida({
   const marcasFrecuentes = catalogos.brands.slice(0, 6);
 
   const priceCents = parseMoneyToCents(precio);
+  const costCents = parseMoneyToCents(costo);
   const puedeGuardar = priceCents !== null && sizeId !== null && !guardando;
 
   async function guardar() {
@@ -244,7 +252,7 @@ function TarjetaCargaRapida({
       gender: null,
       name: null,
       description: null,
-      costCents: null,
+      costCents: puedeVerCosto ? costCents : null,
       status: 'available',
       fotos: fotos.listas.map((f) => ({
         path: f.path as string,
@@ -390,6 +398,19 @@ function TarjetaCargaRapida({
           className="w-full bg-transparent py-2.5 text-label font-semibold tabular-nums outline-none"
         />
       </div>
+
+      {puedeVerCosto && (
+        <div className="mt-1.5 flex items-center gap-2 rounded-[--radius-control] border border-line bg-bg px-3 focus-within:border-accent">
+          <span className="text-caption text-muted">{simbolo}</span>
+          <input
+            inputMode="decimal"
+            placeholder="Costo (opcional)"
+            value={costo}
+            onChange={(e) => setCosto(e.target.value)}
+            className="w-full bg-transparent py-2 text-label tabular-nums outline-none"
+          />
+        </div>
+      )}
 
       <button
         type="button"
