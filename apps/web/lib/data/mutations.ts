@@ -149,6 +149,19 @@ export async function enviarAPapelera(
   return { data: null, error: error?.message ?? null };
 }
 
+/** Igual que enviarAPapelera, pero para varias prendas de un tirón. */
+export async function enviarVariasAPapelera(
+  supabase: SupabaseClient,
+  ids: string[],
+): Promise<Resultado<null>> {
+  if (ids.length === 0) return { data: null, error: null };
+  const { error } = await supabase
+    .from('items')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', ids);
+  return { data: null, error: error?.message ?? null };
+}
+
 export async function restaurarDePapelera(
   supabase: SupabaseClient,
   id: string,

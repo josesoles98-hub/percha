@@ -14,10 +14,17 @@ export function ItemCard({
   item,
   fotoUrl,
   simbolo,
+  modoSeleccion = false,
+  seleccionado = false,
+  onToggleSeleccion,
 }: {
   item: Item;
   fotoUrl: string | null;
   simbolo: string;
+  /** Con esto activo, la tarjeta ya no navega: toca para elegir/quitar. */
+  modoSeleccion?: boolean;
+  seleccionado?: boolean;
+  onToggleSeleccion?: () => void;
 }) {
   // Se parte del vencimiento que calculó la base con los días congelados al
   // reservar, no de los días configurados hoy.
@@ -28,11 +35,8 @@ export function ItemCard({
 
   const subtitulo = [item.brandName, item.sizeLabel].filter(Boolean).join(' · ');
 
-  return (
-    <Link
-      href={`/prenda/${item.code}`}
-      className="group block overflow-hidden rounded-[--radius-card] border border-line bg-surface shadow-card transition-transform active:scale-[0.98]"
-    >
+  const contenido = (
+    <>
       <div className="relative aspect-3/4 bg-line">
         {fotoUrl ? (
           // Las fotos llegan con URL firmada de duración corta: pasarlas por
@@ -61,6 +65,17 @@ export function ItemCard({
             Vendida
           </span>
         )}
+
+        {modoSeleccion && (
+          <span
+            aria-hidden
+            className={`absolute bottom-2 left-2 flex h-6 w-6 items-center justify-center rounded-full border text-caption ${
+              seleccionado ? 'border-accent bg-accent text-accent-ink' : 'border-white bg-black/30 text-white'
+            }`}
+          >
+            {seleccionado ? '✓' : ''}
+          </span>
+        )}
       </div>
 
       <div className="p-2.5">
@@ -75,6 +90,24 @@ export function ItemCard({
           {reserva.label}
         </p>
       )}
+    </>
+  );
+
+  const clases = `group block w-full overflow-hidden rounded-[--radius-card] border bg-surface text-left shadow-card transition-transform active:scale-[0.98] ${
+    seleccionado ? 'border-accent ring-2 ring-accent' : 'border-line'
+  }`;
+
+  if (modoSeleccion) {
+    return (
+      <button type="button" onClick={onToggleSeleccion} className={clases}>
+        {contenido}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/prenda/${item.code}`} className={clases}>
+      {contenido}
     </Link>
   );
 }
