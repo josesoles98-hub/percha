@@ -119,15 +119,19 @@ export function FichaPedido({
    */
   function avisarPorWhatsApp() {
     const lineas = [
-      `*¡Hola, ${pedido.customerName.split(' ')[0] ?? ''}!🤎✨*`,
+      `¡Hola, ${pedido.customerName.split(' ')[0] ?? ''}! ☺️`,
       '',
-      '*Tu pedido ya está en camino 🚚📦*',
-      boletaUrl ? '*Aquí puedes rastrear tu envío:*' : null,
+      'Tu pedido ya está en camino 📦🚚',
+      '',
+      boletaUrl ? 'Te compartimos tu guía de envío:' : null,
+      boletaUrl ? '' : null,
       boletaUrl,
       '',
-      pedido.envio?.trackingCode ? `*🔑 Clave de pedido: ${pedido.envio.trackingCode}*` : null,
+      pedido.envio?.trackingCode ? `Clave de pedido: ${pedido.envio.trackingCode}` : null,
       '',
-      `*Esperamos que disfrutes tu pedido, gracias por elegir ${store.name}.🫶🏼*`,
+      `¡Gracias por elegir ${store.name}! Nos alegra mucho que hayas confiado en nosotros. 🤎`,
+      '',
+      'Cuando recibas tu pedido, nos encantaría conocer tu experiencia. Si puedes, envíanos una foto de tus prendas o de tu paquete; tu testimonio nos ayuda muchísimo y nos permite que esta familia siga creciendo. 📸',
     ].filter((l): l is string => l !== null);
 
     const url = buildWhatsAppUrl(lineas.join('\n'), pedido.customer?.phone ?? undefined);
