@@ -7,7 +7,9 @@ import { obtenerDatosTienda, registrarPedido, type Agencia, type DatosTiendaPubl
 import { prepararFoto } from '@/lib/photos/prepare';
 
 const TIPOS_DOC: DocType[] = ['DNI', 'RUC', 'CE'];
-const MAX_FOTOS = 5;
+// Sin descripción de texto, la foto es la única forma de decir qué compró:
+// tiene que alcanzar para clientes con pedidos grandes (10+ prendas).
+const MAX_FOTOS = 20;
 
 /**
  * Link único y fijo por tienda: el cliente registra su compra de punta a

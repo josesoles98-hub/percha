@@ -40,7 +40,9 @@ export function CompletarForm({
   const [selectorAbierto, setSelectorAbierto] = useState(false);
   const [terminoAgencia, setTerminoAgencia] = useState('');
 
-  const MAX_FOTOS = 5;
+  // Sin descripción de texto, la foto es la única forma de decir qué compró:
+  // tiene que alcanzar para clientes con pedidos grandes (10+ prendas).
+  const MAX_FOTOS = 20;
   const [fotos, setFotos] = useState<Array<{ blob: Blob; previewUrl: string }>>([]);
   const [procesandoFoto, setProcesandoFoto] = useState(false);
 
