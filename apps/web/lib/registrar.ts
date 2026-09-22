@@ -21,6 +21,7 @@ export interface Agencia {
 export interface DatosTiendaPublico {
   storeName: string;
   defaultPackageType: string;
+  whatsappNumber: string | null;
   agencias: Agencia[];
 }
 

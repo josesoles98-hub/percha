@@ -16,7 +16,7 @@ export default async function AjustesEnviosPage() {
 
   const { data: tienda } = await supabase
     .from('stores')
-    .select('shalom_origin_agency_id, default_package_type')
+    .select('shalom_origin_agency_id, default_package_type, whatsapp_number')
     .eq('id', membresia.storeId)
     .maybeSingle();
 
@@ -36,6 +36,7 @@ export default async function AjustesEnviosPage() {
         storeId={membresia.storeId}
         origenInicial={origen}
         paqueteInicial={(tienda?.default_package_type as PackageType) ?? 'PAQUETE XS'}
+        whatsappInicial={tienda?.whatsapp_number ?? ''}
         puedeEditar={membresia.role === 'owner'}
       />
     </main>

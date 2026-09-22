@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PACKAGE_TYPES, validarDocumento, type DocType, type PackageType } from '@percha/core';
+import { buildWhatsAppUrl, PACKAGE_TYPES, validarDocumento, type DocType, type PackageType } from '@percha/core';
 
 import {
   enviarDatosPedido,
@@ -159,6 +159,9 @@ export function CompletarForm({
   }
 
   if (enviado || datos.yaCompletado) {
+    const primerNombre = datos.customerName.trim().split(' ')[0] ?? '';
+    const mensajeWhatsApp = `¡Hola! Soy ${primerNombre}, ya completé mis datos del pedido ${datos.code} en ${datos.storeName} ✅`;
+
     return (
       <Centro>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -170,6 +173,23 @@ export function CompletarForm({
         <p className="mt-1 text-label text-muted">
           Tus datos ya quedaron guardados. {datos.storeName} se encargará del resto.
         </p>
+
+        {datos.whatsappNumber && (
+          <>
+            <a
+              href={buildWhatsAppUrl(mensajeWhatsApp, datos.whatsappNumber)}
+              target="_blank"
+              rel="noopener"
+              className="tap mt-6 flex w-full items-center justify-center gap-2 rounded-[--radius-control] bg-[#25D366] px-4 py-4 text-label font-semibold text-white"
+            >
+              📲 Avísanos por WhatsApp
+            </a>
+            <p className="mt-2 text-caption text-muted">
+              Un toque y te abre WhatsApp con el mensaje ya listo — así confirmamos que todo
+              llegó bien.
+            </p>
+          </>
+        )}
       </Centro>
     );
   }

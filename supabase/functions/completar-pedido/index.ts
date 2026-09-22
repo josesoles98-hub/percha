@@ -48,7 +48,7 @@ async function cargarPedido(orderId: string) {
       `id, code, status, store_id, customer_id, customer_data_submitted_at,
        customers ( full_name, doc_type, doc_number, phone ),
        shipments ( destiny_agency_id, package_type, packages_count ),
-       stores ( name )`,
+       stores ( name, whatsapp_number )`,
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -72,7 +72,7 @@ async function manejarGet(orderId: string | null) {
     package_type: string;
     packages_count: number;
   } | undefined;
-  const tienda = pedido.stores as { name: string } | null;
+  const tienda = pedido.stores as { name: string; whatsapp_number: string | null } | null;
 
   // El cliente no tiene sesión, así que no puede consultar shalom_agencies
   // directamente (esa tabla exige `authenticated`): se la mandamos ya
@@ -87,6 +87,7 @@ async function manejarGet(orderId: string | null) {
     code: pedido.code,
     agencias: agencias ?? [],
     storeName: tienda?.name ?? 'la tienda',
+    whatsappNumber: tienda?.whatsapp_number ?? null,
     cancelado: pedido.status === 'cancelled',
     yaCompletado: Boolean(pedido.customer_data_submitted_at),
     customerName: cliente?.full_name ?? '',

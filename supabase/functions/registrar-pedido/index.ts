@@ -39,7 +39,7 @@ async function manejarGet(storeId: string | null) {
 
   const { data: tienda } = await supabase
     .from('stores')
-    .select('name, shalom_origin_agency_id, default_package_type')
+    .select('name, shalom_origin_agency_id, default_package_type, whatsapp_number')
     .eq('id', storeId)
     .maybeSingle();
   if (!tienda) return json({ error: 'No encontramos esa tienda' }, 404);
@@ -56,6 +56,7 @@ async function manejarGet(storeId: string | null) {
   return json({
     storeName: tienda.name,
     defaultPackageType: tienda.default_package_type,
+    whatsappNumber: tienda.whatsapp_number,
     agencias: agencias ?? [],
   });
 }

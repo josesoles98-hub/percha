@@ -17,11 +17,13 @@ export function EnviosForm({
   storeId,
   origenInicial,
   paqueteInicial,
+  whatsappInicial,
   puedeEditar,
 }: {
   storeId: string;
   origenInicial: Agencia | null;
   paqueteInicial: PackageType;
+  whatsappInicial: string;
   puedeEditar: boolean;
 }) {
   const router = useRouter();
@@ -29,10 +31,12 @@ export function EnviosForm({
 
   const [origen, setOrigen] = useState<Agencia | null>(origenInicial);
   const [paquete, setPaquete] = useState<PackageType>(paqueteInicial);
+  const [whatsapp, setWhatsapp] = useState(whatsappInicial);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hayCambios = origen?.id !== origenInicial?.id || paquete !== paqueteInicial;
+  const hayCambios =
+    origen?.id !== origenInicial?.id || paquete !== paqueteInicial || whatsapp !== whatsappInicial;
 
   async function guardar() {
     setGuardando(true);
@@ -42,6 +46,7 @@ export function EnviosForm({
       shalomOriginAgencyId: origen?.id ?? null,
       defaultPackageType: paquete,
       shippingEnabled: Boolean(origen),
+      whatsappNumber: whatsapp,
     });
 
     setGuardando(false);
@@ -89,6 +94,26 @@ export function EnviosForm({
         </div>
         <p className="mt-2 text-caption text-muted">
           Se preselecciona al crear un pedido, para no tener que elegirlo cada vez.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="whatsapp-tienda" className="mb-2 block text-label font-medium">
+          Tu WhatsApp
+        </label>
+        <input
+          id="whatsapp-tienda"
+          type="tel"
+          inputMode="tel"
+          disabled={!puedeEditar}
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="987654321"
+          className="w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 text-label disabled:opacity-50"
+        />
+        <p className="mt-2 text-caption text-muted">
+          Cuando un cliente registra su pedido, le mostramos un botón para que te avise por
+          WhatsApp que ya lo hizo — muchos no llegan a leer los mensajes que tú les mandas.
         </p>
       </div>
 

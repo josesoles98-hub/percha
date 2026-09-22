@@ -6,6 +6,7 @@ import type { DatosPedidoPublico } from '@/lib/completar';
 const DATOS_DEMO: DatosPedidoPublico = {
   code: 'PED-000042',
   storeName: 'American Vintage Club',
+  whatsappNumber: '987654321',
   cancelado: false,
   yaCompletado: false,
   customerName: 'María Quispe',

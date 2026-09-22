@@ -22,6 +22,7 @@ export interface CambiosTienda {
   shalomOriginAgencyId?: number | null;
   defaultPackageType?: string;
   shippingEnabled?: boolean;
+  whatsappNumber?: string | null;
 }
 
 export async function actualizarTienda(
@@ -46,6 +47,8 @@ export async function actualizarTienda(
     payload.default_package_type = cambios.defaultPackageType;
   if (cambios.shippingEnabled !== undefined)
     payload.shipping_enabled = cambios.shippingEnabled;
+  if (cambios.whatsappNumber !== undefined)
+    payload.whatsapp_number = cambios.whatsappNumber?.trim() || null;
 
   const { error } = await supabase.from('stores').update(payload).eq('id', storeId);
   return { data: null, error: error?.message ?? null };

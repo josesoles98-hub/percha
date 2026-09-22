@@ -23,6 +23,7 @@ export interface Agencia {
 export interface DatosPedidoPublico {
   code: string;
   storeName: string;
+  whatsappNumber: string | null;
   cancelado: boolean;
   yaCompletado: boolean;
   customerName: string;
