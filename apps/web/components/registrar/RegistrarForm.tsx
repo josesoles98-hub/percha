@@ -39,6 +39,23 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
   const [fueCorreccion, setFueCorreccion] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Recordatorio de avisar por WhatsApp: como algunos clientes tocan el
+  // botón pero no llegan a darle "Enviar" en WhatsApp, cuando vuelven a esta
+  // pestaña (visibilitychange) se les pregunta si ya avisaron. Si dicen que
+  // no, se les vuelve a abrir el link — el "reenviar" que pidió la dueña.
+  const [avisoTocado, setAvisoTocado] = useState(false);
+  const [mostrarRecordatorio, setMostrarRecordatorio] = useState(false);
+  const [confirmoAviso, setConfirmoAviso] = useState(false);
+
+  useEffect(() => {
+    if (!avisoTocado || confirmoAviso) return;
+    function alVolver() {
+      if (document.visibilityState === 'visible') setMostrarRecordatorio(true);
+    }
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
+  }, [avisoTocado, confirmoAviso]);
+
   useEffect(() => {
     let cancelado = false;
     void (async () => {
@@ -137,6 +154,14 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
   if (codigo) {
     const primerNombre = nombre.trim().split(' ')[0] ?? '';
     const mensajeWhatsApp = `¡Hola! Soy ${primerNombre}, ya registré mi pedido ${codigo} en ${datos.storeName} ✅`;
+    const linkWhatsApp = datos.whatsappNumber
+      ? buildWhatsAppUrl(mensajeWhatsApp, datos.whatsappNumber)
+      : null;
+
+    function reenviarAviso() {
+      setMostrarRecordatorio(false);
+      if (linkWhatsApp) window.open(linkWhatsApp, '_blank', 'noopener');
+    }
 
     return (
       <Centro>
@@ -160,21 +185,53 @@ export function RegistrarForm({ storeId }: { storeId: string }) {
           {datos.storeName} se encargará del resto.
         </p>
 
-        {datos.whatsappNumber && (
-          <>
+        {linkWhatsApp && !confirmoAviso && (
+          <div className="mt-6 w-full rounded-[--radius-card] border-2 border-[#25D366] bg-[#25D366]/10 p-4">
+            <p className="text-label font-bold text-ink">📲 Último paso: avísanos por WhatsApp</p>
+            <p className="mt-1 text-caption text-muted">
+              Así nos aseguramos de no pasar por alto tu pedido.
+            </p>
             <a
-              href={buildWhatsAppUrl(mensajeWhatsApp, datos.whatsappNumber)}
+              href={linkWhatsApp}
               target="_blank"
               rel="noopener"
-              className="tap mt-6 flex w-full items-center justify-center gap-2 rounded-[--radius-control] bg-[#25D366] px-4 py-4 text-label font-semibold text-white"
+              onClick={() => setAvisoTocado(true)}
+              className={`tap mt-3 flex w-full items-center justify-center gap-2 rounded-[--radius-control] bg-[#25D366] px-4 py-4 text-label font-bold text-white ${
+                avisoTocado ? '' : 'animate-pulse'
+              }`}
             >
-              📲 Avísanos por WhatsApp
+              👉 TOCA AQUÍ PARA AVISAR
             </a>
-            <p className="mt-2 text-caption text-muted">
-              Un toque y te abre WhatsApp con el mensaje ya listo — así confirmamos que todo
-              llegó bien.
-            </p>
-          </>
+
+            {mostrarRecordatorio && (
+              <div className="mt-3 rounded-[--radius-control] border-2 border-amber-400 bg-amber-50 p-3 text-left">
+                <p className="text-label font-semibold text-ink">¿Ya le diste ENVIAR al mensaje?</p>
+                <div className="mt-2.5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmoAviso(true);
+                      setMostrarRecordatorio(false);
+                    }}
+                    className="tap flex-1 rounded-[--radius-control] bg-accent px-3 py-2.5 text-label font-medium text-accent-ink"
+                  >
+                    Sí, ya envié
+                  </button>
+                  <button
+                    type="button"
+                    onClick={reenviarAviso}
+                    className="tap flex-1 rounded-[--radius-control] border border-line bg-surface px-3 py-2.5 text-label font-medium"
+                  >
+                    🔁 No, reenviar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {confirmoAviso && (
+          <p className="mt-6 text-label font-semibold text-ink">✅ ¡Gracias por avisarnos!</p>
         )}
       </Centro>
     );
