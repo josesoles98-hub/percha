@@ -1,12 +1,33 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { buildShareText, buildWhatsAppUrl, type Item, type StoreSettings } from '@percha/core';
 
 import { registrarCompartido } from '@/lib/data/mutations';
 import { createClient } from '@/lib/supabase/client';
 
 import { useToast, vibrar } from './Toast';
+
+/**
+ * Baja una foto y la deja lista como archivo. Comprueba que la respuesta sea
+ * buena: sin esto, una URL vencida o un corte de red devolvía un JSON de
+ * error que se enviaba a WhatsApp disfrazado de foto (le llega rota al grupo).
+ */
+async function descargarFoto(url: string, nombre: string): Promise<File> {
+  let ultimoError: unknown;
+  for (let intento = 0; intento < 2; intento += 1) {
+    try {
+      const respuesta = await fetch(url);
+      if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+      const blob = await respuesta.blob();
+      if (blob.size === 0) throw new Error('Foto vacía');
+      return new File([blob], nombre, { type: 'image/jpeg' });
+    } catch (error) {
+      ultimoError = error;
+    }
+  }
+  throw ultimoError;
+}
 
 /**
  * Hoja de compartir.
@@ -44,6 +65,39 @@ export function ShareSheet({
   );
   const [ocupado, setOcupado] = useState(false);
 
+  // Las fotos se bajan al ABRIR la hoja, no al tocar "Compartir": con mala
+  // señal la descarga tardaba lo bastante como para que el celular dejara de
+  // considerar el toque como un gesto del usuario y rechazara el share. Así,
+  // al tocar el botón ya están en memoria y se comparte al instante.
+  const [archivos, setArchivos] = useState<Record<string, File>>({});
+  const [fallidas, setFallidas] = useState<string[]>([]);
+  const [intento, setIntento] = useState(0);
+
+  useEffect(() => {
+    if (!abierto) return;
+    let cancelado = false;
+
+    fotoUrls.forEach((url, indice) => {
+      void (async () => {
+        try {
+          const archivo = await descargarFoto(url, `${item.code}-${indice + 1}.jpg`);
+          if (!cancelado) setArchivos((previos) => ({ ...previos, [url]: archivo }));
+        } catch {
+          if (!cancelado) setFallidas((previas) => (previas.includes(url) ? previas : [...previas, url]));
+        }
+      })();
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [abierto, fotoUrls, item.code, intento]);
+
+  function reintentarFotos() {
+    setFallidas([]);
+    setIntento((n) => n + 1);
+  }
+
   // Si cambia la prenda o la plantilla, el mensaje se regenera. Se ajusta
   // durante el render y no en un efecto para que nunca llegue a pintarse el
   // texto de la prenda anterior.
@@ -66,30 +120,29 @@ export function ShareSheet({
     }
   }
 
-  async function descargarComoArchivos(): Promise<File[]> {
-    const elegidas = seleccionadas.map((i) => fotoUrls[i]).filter(Boolean) as string[];
-
-    const archivos = await Promise.all(
-      elegidas.map(async (url, indice) => {
-        const respuesta = await fetch(url);
-        const blob = await respuesta.blob();
-        return new File([blob], `${item.code}-${indice + 1}.jpg`, { type: 'image/jpeg' });
-      }),
-    );
-
-    return archivos;
-  }
+  // Solo se comparte cuando TODAS las fotos elegidas ya están bajadas y
+  // bien: nunca se manda una prenda con menos fotos (o rotas) sin avisar.
+  const preparando = seleccionadas.some((i) => {
+    const url = fotoUrls[i];
+    return url !== undefined && !(url in archivos) && !fallidas.includes(url);
+  });
+  const fotosListas = seleccionadas.every((i) => {
+    const url = fotoUrls[i];
+    return url === undefined || url in archivos;
+  });
 
   async function compartirConFotos() {
     setOcupado(true);
     try {
-      const archivos = await descargarComoArchivos();
+      const elegidos = seleccionadas
+        .map((i) => archivos[fotoUrls[i] as string])
+        .filter((f): f is File => Boolean(f));
 
       // Capa 1: el portapapeles como red de seguridad, SIEMPRE antes de abrir
       // el share sheet (después, el gesto del usuario ya se ha consumido).
       const copiado = await copiar(true);
 
-      const datos: ShareData = { files: archivos, text: texto, title: item.code };
+      const datos: ShareData = { files: elegidos, text: texto, title: item.code };
 
       if (typeof navigator.canShare === 'function' && navigator.canShare(datos)) {
         await navigator.share(datos);
@@ -196,6 +249,22 @@ export function ShareSheet({
                 );
               })}
             </div>
+
+            {fallidas.length > 0 && (
+              <div role="alert" className="mt-3 rounded-[--radius-control] border border-status-sold/40 bg-status-sold/10 p-3">
+                <p className="text-label">
+                  No se pudo cargar {fallidas.length === 1 ? 'una foto' : `${fallidas.length} fotos`}.
+                  Revisa tu internet o vuelve a abrir la prenda.
+                </p>
+                <button
+                  type="button"
+                  onClick={reintentarFotos}
+                  className="tap mt-1 text-label font-medium underline underline-offset-2"
+                >
+                  🔁 Reintentar
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -203,10 +272,10 @@ export function ShareSheet({
           <button
             type="button"
             onClick={() => void compartirConFotos()}
-            disabled={ocupado || seleccionadas.length === 0}
+            disabled={ocupado || seleccionadas.length === 0 || !fotosListas}
             className="tap w-full rounded-[--radius-control] bg-accent px-4 py-3.5 font-semibold text-accent-ink disabled:opacity-40"
           >
-            {ocupado ? 'Preparando…' : '📤 Compartir con fotos'}
+            {ocupado ? 'Preparando…' : preparando ? 'Cargando fotos…' : '📤 Compartir con fotos'}
           </button>
 
           <button
