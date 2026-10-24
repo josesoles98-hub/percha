@@ -12,6 +12,10 @@ import { createClient } from '@/lib/supabase/client';
 
 const INTERVALOS = [2, 5, 6, 7];
 
+// Antes eran solo 24: quien tiene cientos de prendas disponibles no podía
+// armar una cola con todas, solo con las más recientes.
+const MAX_PRENDAS_LISTA = 500;
+
 // El servidor no puede saber si este navegador soporta push; se resuelve
 // con useSyncExternalStore (no un efecto) para no romper la hidratación,
 // igual que la detección de "app instalada" en InstalarApp.tsx. No hay
@@ -57,7 +61,12 @@ export function ColaPublicacion({
     let cancelado = false;
     const t = setTimeout(async () => {
       if (!cancelado) setBuscando(true);
-      const encontradas = await buscarPrendasDisponibles(createClient(), storeId, busqueda, 24);
+      const encontradas = await buscarPrendasDisponibles(
+        createClient(),
+        storeId,
+        busqueda,
+        MAX_PRENDAS_LISTA,
+      );
       if (!cancelado) {
         setResultados(encontradas);
         setBuscando(false);
@@ -76,6 +85,22 @@ export function ColaPublicacion({
         ? previas.filter((p) => p.id !== prenda.id)
         : [...previas, prenda],
     );
+  }
+
+  // Elige (o quita) de un golpe todas las que se ven ahora: si buscaste
+  // "Nike", son todas las Nike. Las que ya estaban elegidas conservan su orden.
+  const todasElegidas =
+    resultados.length > 0 && resultados.every((r) => prendas.some((p) => p.id === r.id));
+
+  function elegirTodas() {
+    vibrar();
+    setPrendas((previas) => {
+      const yaElegidas = new Set(previas.map((p) => p.id));
+      const faltan = resultados.filter((r) => !yaElegidas.has(r.id));
+      if (faltan.length > 0) return [...previas, ...faltan];
+      const visibles = new Set(resultados.map((r) => r.id));
+      return previas.filter((p) => !visibles.has(p.id));
+    });
   }
 
   async function activarAvisos() {
@@ -245,11 +270,20 @@ export function ColaPublicacion({
       )}
 
       <div>
-        <div className="mb-2 flex items-baseline justify-between">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
           <span className="text-label font-medium">Toca las que quieras publicar</span>
-          {prendas.length > 0 && (
-            <span className="text-caption text-muted">{prendas.length} elegidas</span>
-          )}
+          <span className="flex items-baseline gap-3 text-caption text-muted">
+            {prendas.length > 0 && <span>{prendas.length} elegidas</span>}
+            {resultados.length > 0 && (
+              <button
+                type="button"
+                onClick={elegirTodas}
+                className="tap text-accent underline underline-offset-4"
+              >
+                {todasElegidas ? 'Quitar todas' : `Elegir todas (${resultados.length})`}
+              </button>
+            )}
+          </span>
         </div>
 
         {buscando && resultados.length === 0 ? (
@@ -275,16 +309,22 @@ export function ColaPublicacion({
         )}
       </div>
 
-      {/* Botón fijo: con la cuadrícula puede haber scroll largo, y "Empezar"
-          siempre tiene que estar a un toque de distancia. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 px-4 py-3 pb-safe backdrop-blur">
+      {/* Botón fijo: con la cuadrícula puede haber scroll largo, y el botón de
+          publicar siempre tiene que estar a un toque de distancia.
+          z-50: por encima de la barra de navegación inferior (z-40); con z-30
+          quedaba tapado por ella. */}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-bg/95 px-4 py-3 pb-safe backdrop-blur">
         <button
           type="button"
           onClick={() => void empezar()}
           disabled={prendas.length === 0 || ocupado}
-          className="tap mx-auto flex w-full max-w-2xl items-center justify-center rounded-[--radius-control] bg-accent px-4 py-3 font-medium text-accent-ink disabled:opacity-40"
+          className="tap mx-auto flex w-full max-w-2xl items-center justify-center rounded-[--radius-control] bg-[#25D366] px-4 py-3.5 text-center font-bold text-white disabled:opacity-40"
         >
-          {ocupado ? 'Empezando…' : `Empezar (${prendas.length})`}
+          {ocupado
+            ? 'Armando la cola…'
+            : prendas.length === 0
+              ? 'Elige las prendas que quieras publicar'
+              : `Publicar ${prendas.length} ${prendas.length === 1 ? 'prenda seleccionada' : 'prendas seleccionadas'} cada ${intervalo} min`}
         </button>
       </div>
     </div>
