@@ -10,7 +10,7 @@ import { buscarPrendasDisponibles, type PrendaDisponible } from '@/lib/data/orde
 import { soportaPush, suscribirNotificaciones } from '@/lib/push/subscribe';
 import { createClient } from '@/lib/supabase/client';
 
-const INTERVALOS = [5, 6, 7];
+const INTERVALOS = [2, 5, 6, 7];
 
 // El servidor no puede saber si este navegador soporta push; se resuelve
 // con useSyncExternalStore (no un efecto) para no romper la hidratación,

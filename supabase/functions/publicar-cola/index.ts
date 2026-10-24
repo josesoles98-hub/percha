@@ -42,7 +42,12 @@ async function siguienteTiendaConTurno(storeId: string, intervaloMinutos: number
 
   if (ultimoEnviado?.sent_at) {
     const pasaron = Date.now() - new Date(ultimoEnviado.sent_at).getTime();
-    if (pasaron < intervaloMinutos * 60_000) return false;
+    // sent_at se anota unos segundos DESPUÉS de arrancar el ciclo (tras mandar
+    // el push), así que al llegar el minuto N siempre faltan un par de
+    // segundos y el aviso se corría al ciclo siguiente: "2 min" salía cada 3.
+    // Con el cron a 60 s, 30 s de holgura bastan para caer en el ciclo justo
+    // sin adelantarse nunca al anterior.
+    if (pasaron < intervaloMinutos * 60_000 - 30_000) return false;
   }
 
   return true;
