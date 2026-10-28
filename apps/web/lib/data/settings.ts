@@ -23,6 +23,8 @@ export interface CambiosTienda {
   defaultPackageType?: string;
   shippingEnabled?: boolean;
   whatsappNumber?: string | null;
+  /** Lado largo de la copia HD de las fotos: 2048 (alta) o 4000 (máxima). */
+  hdMaxSide?: 2048 | 4000;
 }
 
 export async function actualizarTienda(
@@ -49,6 +51,7 @@ export async function actualizarTienda(
     payload.shipping_enabled = cambios.shippingEnabled;
   if (cambios.whatsappNumber !== undefined)
     payload.whatsapp_number = cambios.whatsappNumber?.trim() || null;
+  if (cambios.hdMaxSide !== undefined) payload.hd_max_side = cambios.hdMaxSide;
 
   const { error } = await supabase.from('stores').update(payload).eq('id', storeId);
   return { data: null, error: error?.message ?? null };

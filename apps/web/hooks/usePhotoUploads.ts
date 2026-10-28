@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { createClient } from '@/lib/supabase/client';
 import {
+  LADO_HD_ALTA,
   aJpeg,
   prepararFotoDesdeJpeg,
   prepararFotoHd,
@@ -85,6 +86,31 @@ async function conCupoHd<T>(tarea: () => Promise<T>): Promise<T> {
   }
 }
 
+// Tamaño elegido para la copia HD (Ajustes > Fotos en HD). Se lee una vez por
+// tienda y se recuerda mientras la página siga abierta; si no se puede leer,
+// se usa el valor de siempre (2048) para que nunca falle una subida por esto.
+const ladoHdPorTienda = new Map<string, Promise<number>>();
+
+function leerLadoHd(storeId: string): Promise<number> {
+  let consulta = ladoHdPorTienda.get(storeId);
+  if (!consulta) {
+    consulta = (async () => {
+      try {
+        const { data } = await createClient()
+          .from('stores')
+          .select('hd_max_side')
+          .eq('id', storeId)
+          .maybeSingle();
+        return (data?.hd_max_side as number | undefined) ?? LADO_HD_ALTA;
+      } catch {
+        return LADO_HD_ALTA;
+      }
+    })();
+    ladoHdPorTienda.set(storeId, consulta);
+  }
+  return consulta;
+}
+
 /**
  * Sube las fotos en segundo plano mientras el usuario sigue rellenando.
  *
@@ -153,7 +179,7 @@ export function usePhotoUploads(
         const hd = await conCupoHd(async () => {
           if (!vigente()) return null;
 
-          const preparada = await prepararFotoHd(jpeg);
+          const preparada = await prepararFotoHd(jpeg, await leerLadoHd(storeId));
           if (!vigente()) return null;
 
           const path = rutaFotoHd(storeId, itemId, position);

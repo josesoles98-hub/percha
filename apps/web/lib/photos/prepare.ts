@@ -19,7 +19,18 @@ const OBJETIVO_MB = 0.25;
 // HD. Esta se sube aparte y nunca se baja para navegar, solo al compartir.
 const MAX_LADO_HD = 2048;
 const CALIDAD_HD = 0.85;
-const OBJETIVO_MB_HD = 1.2;
+// 2 MB: con menos, la librería achicaba las fotos con mucho detalle por
+// debajo de 2048 px (salían de 1600) para entrar en el peso.
+const OBJETIVO_MB_HD = 2;
+
+// Opción "máxima": cerca del tope de 4096 px que usa WhatsApp en HD (se
+// queda en 4000 para no rozar el límite de 16.7 millones de píxeles de los
+// canvas de iPhone). Calidad casi sin pérdida; el tope de peso solo evita
+// que una foto rara dispare el almacenamiento.
+export const LADO_HD_ALTA = 2048;
+export const LADO_HD_MAXIMA = 4000;
+const CALIDAD_HD_MAXIMA = 0.92;
+const OBJETIVO_MB_HD_MAXIMA = 5;
 
 export interface FotoPreparada {
   blob: Blob;
@@ -120,12 +131,19 @@ export async function prepararFotoDesdeJpeg(jpeg: File): Promise<FotoPreparada> 
   };
 }
 
-/** Copia HD (hasta 2048 px) a partir de un original ya en JPEG. */
-export async function prepararFotoHd(jpeg: File): Promise<FotoHdPreparada> {
+/**
+ * Copia HD a partir de un original ya en JPEG: hasta 2048 px ("alta") o
+ * 4000 px ("máxima"). Nunca agranda: un original más chico queda como está.
+ */
+export async function prepararFotoHd(
+  jpeg: File,
+  maxLado: number = LADO_HD_ALTA,
+): Promise<FotoHdPreparada> {
+  const maxima = maxLado >= LADO_HD_MAXIMA;
   const comprimida = await comprimirJpeg(jpeg, {
-    maxSizeMB: OBJETIVO_MB_HD,
-    maxWidthOrHeight: MAX_LADO_HD,
-    initialQuality: CALIDAD_HD,
+    maxSizeMB: maxima ? OBJETIVO_MB_HD_MAXIMA : OBJETIVO_MB_HD,
+    maxWidthOrHeight: maxima ? LADO_HD_MAXIMA : MAX_LADO_HD,
+    initialQuality: maxima ? CALIDAD_HD_MAXIMA : CALIDAD_HD,
   });
 
   const { width, height } = await medir(comprimida);
