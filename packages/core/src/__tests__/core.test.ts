@@ -8,6 +8,7 @@ import {
   getReserveInfo,
   getReserveInfoFromExpiry,
 } from '../reservations/index.js';
+import { calidadFoto } from '../photos/calidad.js';
 import { buildWhatsAppUrl, renderTemplate } from '../share/template.js';
 
 describe('formatMoney', () => {
@@ -191,5 +192,30 @@ describe('buildWhatsAppUrl', () => {
 
   it('sin teléfono, deja el link genérico de wa.me', () => {
     expect(buildWhatsAppUrl('hola')).toBe('https://wa.me/?text=hola');
+  });
+});
+
+describe('calidadFoto', () => {
+  it("sin copia HD es 'sin'", () => {
+    expect(calidadFoto({ hdPath: null, hdWidth: null, hdHeight: null })).toBe('sin');
+  });
+
+  it("una copia de 2048 px es 'hd', vertical u horizontal", () => {
+    expect(calidadFoto({ hdPath: 'a/b/1-hd.jpg', hdWidth: 1536, hdHeight: 2048 })).toBe('hd');
+    expect(calidadFoto({ hdPath: 'a/b/1-hd.jpg', hdWidth: 2048, hdHeight: 1152 })).toBe('hd');
+  });
+
+  it("si el original era pequeño la copia es 'chica', no 'hd'", () => {
+    expect(calidadFoto({ hdPath: 'a/b/1-hd.jpg', hdWidth: 900, hdHeight: 1200 })).toBe('chica');
+  });
+
+  it("el límite es 1600 px del lado largo", () => {
+    expect(calidadFoto({ hdPath: 'x', hdWidth: 1200, hdHeight: 1600 })).toBe('hd');
+    expect(calidadFoto({ hdPath: 'x', hdWidth: 1200, hdHeight: 1599 })).toBe('chica');
+  });
+
+  it("con la copia subida pero sin medidas se da por 'hd'", () => {
+    expect(calidadFoto({ hdPath: 'x', hdWidth: null, hdHeight: null })).toBe('hd');
+    expect(calidadFoto({ hdPath: 'x', hdWidth: 0, hdHeight: 0 })).toBe('hd');
   });
 });

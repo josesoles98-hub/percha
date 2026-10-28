@@ -150,6 +150,7 @@ export function PrendaForm({
   // se pierde sin aviso (el guardado solo manda fotos.listas en ese instante).
   const puedeGuardar =
     priceCents !== null && campos.sizeId !== null && !guardando && !fotos.subiendo;
+  const textoSubiendo = fotos.subiendoHd ? 'Subiendo HD…' : 'Subiendo fotos…';
 
   const tallasPorGrupo = useMemo(() => {
     const grupos = new Map<string, Catalogos['sizes']>();
@@ -169,14 +170,7 @@ export function PrendaForm({
     return data?.id ?? null;
   }
 
-  const fotosListas = () =>
-    fotos.listas.map((f) => ({
-      path: f.path as string,
-      position: f.position,
-      width: f.width,
-      height: f.height,
-      bytes: f.bytes,
-    }));
+  const fotosListas = () => fotos.paraGuardar;
 
   async function guardarEdicion() {
     if (priceCents === null || !campos.sizeId || !itemIdProp || !codigo) return;
@@ -313,11 +307,14 @@ export function PrendaForm({
           onAgregar={fotos.agregar}
           onQuitar={fotos.quitar}
           onReintentar={fotos.reintentar}
+          onReintentarHd={fotos.reintentarHd}
         />
 
         {fotos.subiendo && (
           <p className="-mt-5 text-caption text-muted">
-            Subiendo fotos… puedes seguir llenando; Guardar esperará a que terminen.
+            {fotos.subiendoHd
+              ? 'Subiendo la copia HD de las fotos… puedes seguir llenando; Guardar esperará a que termine.'
+              : 'Subiendo fotos… puedes seguir llenando; Guardar esperará a que terminen.'}
           </p>
         )}
 
@@ -601,7 +598,7 @@ export function PrendaForm({
             disabled={!puedeGuardar}
             className="tap w-full rounded-[--radius-control] bg-accent px-4 py-3 font-medium text-accent-ink disabled:opacity-40"
           >
-            {guardando ? 'Guardando…' : fotos.subiendo ? 'Subiendo fotos…' : 'Guardar cambios'}
+            {guardando ? 'Guardando…' : fotos.subiendo ? textoSubiendo : 'Guardar cambios'}
           </button>
         ) : (
           <>
@@ -612,7 +609,7 @@ export function PrendaForm({
                 disabled={!puedeGuardar}
                 className="tap flex-1 rounded-[--radius-control] border border-line bg-surface px-4 py-3 font-medium disabled:opacity-40"
               >
-                {guardando ? 'Guardando…' : fotos.subiendo ? 'Subiendo…' : 'Guardar'}
+                {guardando ? 'Guardando…' : fotos.subiendo ? (fotos.subiendoHd ? 'HD…' : 'Subiendo…') : 'Guardar'}
               </button>
               <button
                 type="button"
@@ -620,7 +617,7 @@ export function PrendaForm({
                 disabled={!puedeGuardar}
                 className="tap flex-2 rounded-[--radius-control] bg-accent px-4 py-3 font-medium text-accent-ink disabled:opacity-40"
               >
-                {fotos.subiendo ? 'Subiendo fotos…' : 'Guardar y compartir'}
+                {fotos.subiendo ? textoSubiendo : 'Guardar y compartir'}
               </button>
             </div>
             <button
@@ -629,7 +626,7 @@ export function PrendaForm({
               disabled={!puedeGuardar}
               className="tap w-full text-caption text-muted disabled:opacity-40"
             >
-              {fotos.subiendo ? 'Subiendo fotos…' : 'Guardar y seguir cargando'}
+              {fotos.subiendo ? textoSubiendo : 'Guardar y seguir cargando'}
             </button>
           </>
         )}

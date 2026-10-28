@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { parseMoneyToCents } from '@percha/core';
 
-import { usePhotoUploads } from '@/hooks/usePhotoUploads';
+import { usePhotoUploads, type EstadoHd } from '@/hooks/usePhotoUploads';
 import type { Catalogos } from '@/lib/data/inventory';
 import { crearMarca, crearPrenda } from '@/lib/data/mutations';
 import { idUnico } from '@/lib/id';
@@ -258,13 +258,7 @@ function TarjetaCargaRapida({
       description: null,
       costCents: puedeVerCosto ? costCents : null,
       status: 'available',
-      fotos: fotos.listas.map((f) => ({
-        path: f.path as string,
-        position: f.position,
-        width: f.width,
-        height: f.height,
-        bytes: f.bytes,
-      })),
+      fotos: fotos.paraGuardar,
     });
 
     setGuardando(false);
@@ -305,6 +299,13 @@ function TarjetaCargaRapida({
                 </button>
               ) : (
                 <div className="flex size-full items-center justify-center text-caption text-muted">…</div>
+              )}
+
+              {foto?.estado === 'lista' && (
+                <EtiquetaHdTarjeta
+                  estado={foto.hdEstado}
+                  onReintentar={() => fotos.reintentarHd(indice + 1)}
+                />
               )}
             </div>
           );
@@ -429,8 +430,30 @@ function TarjetaCargaRapida({
         disabled={!puedeGuardar}
         className="tap mt-3 w-full rounded-[--radius-control] bg-accent px-4 py-2.5 text-label font-medium text-accent-ink disabled:opacity-40"
       >
-        {guardando ? 'Guardando…' : fotos.subiendo ? 'Subiendo fotos…' : 'Guardar'}
+        {guardando ? 'Guardando…' : fotos.subiendo ? (fotos.subiendoHd ? 'Subiendo HD…' : 'Subiendo fotos…') : 'Guardar'}
       </button>
     </div>
   );
+}
+
+/** Estado de la copia HD de cada foto, en miniatura. */
+function EtiquetaHdTarjeta({
+  estado,
+  onReintentar,
+}: {
+  estado: EstadoHd;
+  onReintentar: () => void;
+}) {
+  const base = 'absolute bottom-0.5 left-0.5 rounded px-1 py-px text-[9px] font-semibold leading-tight';
+
+  if (estado === 'lista') return <span className={`${base} bg-[#25D366] text-white`}>HD</span>;
+  if (estado === 'error') {
+    return (
+      <button type="button" onClick={onReintentar} className={`${base} bg-status-sold text-white`}>
+        HD ✕ reintentar
+      </button>
+    );
+  }
+  if (estado === 'sin') return null;
+  return <span className={`${base} bg-amber-400 text-black`}>HD…</span>;
 }

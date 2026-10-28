@@ -65,6 +65,10 @@ export {
 } from './share/template';
 export type { ShareVariable, ShareVars } from './share/template';
 
+// ── Fotos ─────────────────────────────────────────────────────────────
+export { LADO_MINIMO_HD, calidadFoto } from './photos/calidad';
+export type { CalidadFoto, DatosHdFoto } from './photos/calidad';
+
 // ── Búsqueda ──────────────────────────────────────────────────────────
 export { normalizarCodigo, parseSearchQuery } from './search/query';
 export type { SearchIntent } from './search/query';

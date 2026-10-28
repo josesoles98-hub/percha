@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import { calidadFoto } from '@percha/core';
 
 import type { FotoEnCurso } from '@/hooks/usePhotoUploads';
 
@@ -19,11 +20,13 @@ export function PhotoPicker({
   onAgregar,
   onQuitar,
   onReintentar,
+  onReintentarHd,
 }: {
   fotos: FotoEnCurso[];
   onAgregar: (archivos: FileList) => void;
   onQuitar: (position: number) => void;
   onReintentar: (position: number) => void;
+  onReintentarHd: (position: number) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const huecos = [1, 2, 3];
@@ -88,6 +91,10 @@ export function PhotoPicker({
                     </button>
                   )}
 
+                  {foto.estado === 'lista' && (
+                    <EtiquetaHd foto={foto} onReintentar={() => onReintentarHd(position)} />
+                  )}
+
                   <button
                     type="button"
                     onClick={() => onQuitar(position)}
@@ -117,4 +124,36 @@ export function PhotoPicker({
       </div>
     </div>
   );
+}
+
+/**
+ * Verificador de calidad de cada foto: dice si ya tiene su copia HD (la que
+ * se manda a WhatsApp), si se está subiendo, si falló o si no la tiene.
+ */
+function EtiquetaHd({ foto, onReintentar }: { foto: FotoEnCurso; onReintentar: () => void }) {
+  const base = 'absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight';
+
+  if (foto.hdEstado === 'pendiente' || foto.hdEstado === 'subiendo') {
+    return <span className={`${base} bg-amber-400 text-black`}>Subiendo HD…</span>;
+  }
+
+  if (foto.hdEstado === 'error') {
+    return (
+      <button type="button" onClick={onReintentar} className={`${base} bg-status-sold text-white`}>
+        HD falló · reintentar
+      </button>
+    );
+  }
+
+  const calidad = calidadFoto({
+    hdPath: foto.hdPath ?? null,
+    hdWidth: foto.hdWidth ?? null,
+    hdHeight: foto.hdHeight ?? null,
+  });
+
+  if (calidad === 'hd') return <span className={`${base} bg-[#25D366] text-white`}>HD</span>;
+  if (calidad === 'chica') {
+    return <span className={`${base} bg-black/60 text-white`}>Original chico</span>;
+  }
+  return <span className={`${base} bg-black/60 text-white`}>Sin HD</span>;
 }

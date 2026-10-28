@@ -96,11 +96,15 @@ export async function borrarDefinitivo(
 ): Promise<Resultado<null>> {
   const { data: fotos } = await supabase
     .from('item_photos')
-    .select('storage_path')
+    .select('storage_path, hd_path')
     .eq('item_id', itemId);
 
   if (fotos && fotos.length > 0) {
-    await supabase.storage.from('item-photos').remove(fotos.map((f) => f.storage_path));
+    // Las dos copias de cada foto: la normal y, si la tenía, la HD.
+    const archivos = fotos.flatMap((f) =>
+      f.hd_path ? [f.storage_path, f.hd_path as string] : [f.storage_path],
+    );
+    await supabase.storage.from('item-photos').remove(archivos);
   }
 
   const { error } = await supabase.from('items').delete().eq('id', itemId);

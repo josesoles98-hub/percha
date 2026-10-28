@@ -13,6 +13,14 @@ const MAX_LADO = 1280;
 const CALIDAD = 0.78;
 const OBJETIVO_MB = 0.25;
 
+// Segunda copia, solo para compartir por WhatsApp. La normal de arriba es la
+// que usan la cuadrícula y las fichas y tiene que seguir siendo liviana; si
+// WhatsApp recibiera esa, la foto saldría achicada aunque el original fuera
+// HD. Esta se sube aparte y nunca se baja para navegar, solo al compartir.
+const MAX_LADO_HD = 2048;
+const CALIDAD_HD = 0.85;
+const OBJETIVO_MB_HD = 1.2;
+
 export interface FotoPreparada {
   blob: Blob;
   width: number;
@@ -20,6 +28,13 @@ export interface FotoPreparada {
   bytes: number;
   /** URL local para la vista previa inmediata. Hay que revocarla al soltar. */
   previewUrl: string;
+}
+
+export interface FotoHdPreparada {
+  blob: Blob;
+  width: number;
+  height: number;
+  bytes: number;
 }
 
 /** ¿Es HEIC/HEIF? Es el formato por defecto de la cámara del iPhone. */
@@ -55,37 +70,44 @@ async function medir(blob: Blob): Promise<{ width: number; height: number }> {
 }
 
 /**
- * Convierte y comprime. Se ejecuta en un Web Worker cuando el navegador lo
- * permite, para que el hilo principal siga respondiendo mientras el usuario
- * teclea el precio.
+ * Deja el original como JPEG. Si es HEIC lo convierte (lo más caro de todo
+ * el proceso), así que se hace UNA sola vez y de ahí salen la copia normal
+ * y la HD.
  */
-export async function prepararFoto(file: File): Promise<FotoPreparada> {
-  let origen: Blob = file;
+export async function aJpeg(file: File): Promise<File> {
+  const origen: Blob = esHeic(file) ? await convertirHeic(file) : file;
+  return new File([origen], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+}
 
-  if (esHeic(file)) {
-    origen = await convertirHeic(file);
-  }
-
+/**
+ * Comprime. Se ejecuta en un Web Worker cuando el navegador lo permite,
+ * para que el hilo principal siga respondiendo mientras el usuario teclea
+ * el precio.
+ */
+async function comprimirJpeg(
+  archivo: File,
+  opciones: { maxSizeMB: number; maxWidthOrHeight: number; initialQuality: number },
+): Promise<Blob> {
   const { default: comprimir } = await import('browser-image-compression');
-  const archivoJpeg = new File([origen], file.name.replace(/\.\w+$/, '.jpg'), {
-    type: 'image/jpeg',
-  });
-  const opciones = {
-    maxSizeMB: OBJETIVO_MB,
-    maxWidthOrHeight: MAX_LADO,
-    initialQuality: CALIDAD,
-    fileType: 'image/jpeg',
-  };
+  const base = { ...opciones, fileType: 'image/jpeg' };
 
-  let comprimida: Blob;
   try {
-    comprimida = await comprimir(archivoJpeg, { ...opciones, useWebWorker: true });
+    return await comprimir(archivo, { ...base, useWebWorker: true });
   } catch {
     // El Web Worker de la librería puede fallar en un contexto no seguro
     // (probando por la IP de la red local en vez de https o localhost).
     // Sin este respaldo, una prenda se guardaba sin foto y sin ningún aviso.
-    comprimida = await comprimir(archivoJpeg, { ...opciones, useWebWorker: false });
+    return comprimir(archivo, { ...base, useWebWorker: false });
   }
+}
+
+/** Copia normal (liviana) a partir de un original ya en JPEG. */
+export async function prepararFotoDesdeJpeg(jpeg: File): Promise<FotoPreparada> {
+  const comprimida = await comprimirJpeg(jpeg, {
+    maxSizeMB: OBJETIVO_MB,
+    maxWidthOrHeight: MAX_LADO,
+    initialQuality: CALIDAD,
+  });
 
   const { width, height } = await medir(comprimida);
 
@@ -98,7 +120,30 @@ export async function prepararFoto(file: File): Promise<FotoPreparada> {
   };
 }
 
+/** Copia HD (hasta 2048 px) a partir de un original ya en JPEG. */
+export async function prepararFotoHd(jpeg: File): Promise<FotoHdPreparada> {
+  const comprimida = await comprimirJpeg(jpeg, {
+    maxSizeMB: OBJETIVO_MB_HD,
+    maxWidthOrHeight: MAX_LADO_HD,
+    initialQuality: CALIDAD_HD,
+  });
+
+  const { width, height } = await medir(comprimida);
+
+  return { blob: comprimida, width, height, bytes: comprimida.size };
+}
+
+/** Convierte y comprime (solo la copia normal). */
+export async function prepararFoto(file: File): Promise<FotoPreparada> {
+  return prepararFotoDesdeJpeg(await aJpeg(file));
+}
+
 /** Ruta en Storage. El store_id va primero porque la política RLS lo lee de ahí. */
 export function rutaFoto(storeId: string, itemId: string, position: number): string {
   return `${storeId}/${itemId}/${position}.jpg`;
+}
+
+/** Ruta de la copia HD: junto a la normal, con '-hd' antes de la extensión. */
+export function rutaFotoHd(storeId: string, itemId: string, position: number): string {
+  return `${storeId}/${itemId}/${position}-hd.jpg`;
 }

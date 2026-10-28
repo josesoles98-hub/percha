@@ -1,8 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { buildShareText, buildWhatsAppUrl, type Item, type StoreSettings } from '@percha/core';
+import {
+  buildShareText,
+  buildWhatsAppUrl,
+  calidadFoto,
+  type Item,
+  type StoreSettings,
+} from '@percha/core';
 
+import { firmarFotos } from '@/lib/data/inventory';
 import { registrarCompartido } from '@/lib/data/mutations';
 import { createClient } from '@/lib/supabase/client';
 
@@ -29,6 +36,19 @@ async function descargarFoto(url: string, nombre: string): Promise<File> {
   throw ultimoError;
 }
 
+/** Datos de la copia HD de cada foto, en el mismo orden que `fotoUrls`. */
+export interface FotoHdInfo {
+  hdPath: string | null;
+  hdWidth: number | null;
+  hdHeight: number | null;
+}
+
+/** Una foto ya bajada y lista para compartir, y si es la copia HD o la normal. */
+interface FotoLista {
+  archivo: File;
+  hd: boolean;
+}
+
 /**
  * Hoja de compartir.
  *
@@ -47,12 +67,14 @@ export function ShareSheet({
   item,
   store,
   fotoUrls,
+  fotosHd,
   abierto,
   onCerrar,
 }: {
   item: Item;
   store: StoreSettings;
   fotoUrls: string[];
+  fotosHd: FotoHdInfo[];
   abierto: boolean;
   onCerrar: () => void;
 }) {
@@ -69,7 +91,7 @@ export function ShareSheet({
   // señal la descarga tardaba lo bastante como para que el celular dejara de
   // considerar el toque como un gesto del usuario y rechazara el share. Así,
   // al tocar el botón ya están en memoria y se comparte al instante.
-  const [archivos, setArchivos] = useState<Record<string, File>>({});
+  const [archivos, setArchivos] = useState<Record<string, FotoLista>>({});
   const [fallidas, setFallidas] = useState<string[]>([]);
   const [intento, setIntento] = useState(0);
 
@@ -77,21 +99,49 @@ export function ShareSheet({
     if (!abierto) return;
     let cancelado = false;
 
-    fotoUrls.forEach((url, indice) => {
-      void (async () => {
-        try {
-          const archivo = await descargarFoto(url, `${item.code}-${indice + 1}.jpg`);
-          if (!cancelado) setArchivos((previos) => ({ ...previos, [url]: archivo }));
-        } catch {
-          if (!cancelado) setFallidas((previas) => (previas.includes(url) ? previas : [...previas, url]));
-        }
-      })();
-    });
+    void (async () => {
+      // Las URLs de la copia HD se firman aquí, al abrir la hoja: así son
+      // frescas aunque la ficha lleve rato abierta, y la ficha no tiene que
+      // firmarlas todas las veces que se ve sin compartir.
+      const rutasHd = fotosHd.map((f) => f.hdPath).filter((r): r is string => Boolean(r));
+      const firmadasHd =
+        rutasHd.length > 0 ? await firmarFotos(createClient(), rutasHd, 900) : new Map<string, string>();
+
+      fotoUrls.forEach((url, indice) => {
+        void (async () => {
+          const nombre = `${item.code}-${indice + 1}.jpg`;
+          const hdPath = fotosHd[indice]?.hdPath;
+          const urlHd = hdPath ? firmadasHd.get(hdPath) : undefined;
+
+          try {
+            let lista: FotoLista | null = null;
+
+            // Primero la HD; si por lo que sea no baja, se usa la normal
+            // (y la etiqueta de la foto lo dice, no se hace en silencio).
+            if (urlHd) {
+              try {
+                lista = { archivo: await descargarFoto(urlHd, nombre), hd: true };
+              } catch {
+                lista = null;
+              }
+            }
+            lista ??= { archivo: await descargarFoto(url, nombre), hd: false };
+
+            const lista_ = lista;
+            if (!cancelado) setArchivos((previos) => ({ ...previos, [url]: lista_ }));
+          } catch {
+            if (!cancelado) {
+              setFallidas((previas) => (previas.includes(url) ? previas : [...previas, url]));
+            }
+          }
+        })();
+      });
+    })();
 
     return () => {
       cancelado = true;
     };
-  }, [abierto, fotoUrls, item.code, intento]);
+  }, [abierto, fotoUrls, fotosHd, item.code, intento]);
 
   function reintentarFotos() {
     setFallidas([]);
@@ -131,11 +181,26 @@ export function ShareSheet({
     return url === undefined || url in archivos;
   });
 
+  // Lo que realmente va a salir: así se verifica, antes de enviar, qué fotos
+  // van en HD y cuáles en calidad normal.
+  const elegidasListas = seleccionadas
+    .map((i) => archivos[fotoUrls[i] as string])
+    .filter((f): f is FotoLista => Boolean(f));
+  const enHd = elegidasListas.filter((f) => f.hd).length;
+  const resumenCalidad =
+    elegidasListas.length === 0 || preparando
+      ? null
+      : enHd === elegidasListas.length
+        ? `✓ Se enviarán ${enHd} ${enHd === 1 ? 'foto' : 'fotos'} en HD`
+        : enHd === 0
+          ? 'Estas fotos no tienen copia HD: se enviarán en calidad normal.'
+          : `${enHd} en HD y ${elegidasListas.length - enHd} en calidad normal.`;
+
   async function compartirConFotos() {
     setOcupado(true);
     try {
       const elegidos = seleccionadas
-        .map((i) => archivos[fotoUrls[i] as string])
+        .map((i) => archivos[fotoUrls[i] as string]?.archivo)
         .filter((f): f is File => Boolean(f));
 
       // Capa 1: el portapapeles como red de seguridad, SIEMPRE antes de abrir
@@ -245,10 +310,31 @@ export function ShareSheet({
                         ✓
                       </span>
                     )}
+                    <span
+                      className={`absolute left-0 top-0 rounded-br px-1 text-[9px] font-semibold leading-tight ${
+                        archivos[url]?.hd ? 'bg-[#25D366] text-white' : 'bg-black/60 text-white'
+                      }`}
+                    >
+                      {archivos[url]
+                        ? archivos[url].hd
+                          ? 'HD'
+                          : calidadFoto(fotosHd[indice] ?? { hdPath: null, hdWidth: null, hdHeight: null }) === 'chica'
+                            ? 'chica'
+                            : 'normal'
+                        : fallidas.includes(url)
+                          ? '✕'
+                          : '…'}
+                    </span>
                   </button>
                 );
               })}
             </div>
+
+            {resumenCalidad && (
+              <p className={`mt-2 text-caption ${enHd > 0 ? 'font-medium' : 'text-muted'}`}>
+                {resumenCalidad}
+              </p>
+            )}
 
             {fallidas.length > 0 && (
               <div role="alert" className="mt-3 rounded-[--radius-control] border border-status-sold/40 bg-status-sold/10 p-3">

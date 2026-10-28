@@ -73,6 +73,7 @@ export default async function AjustesPage() {
       </Seccion>
 
       <Seccion titulo="Datos">
+        <Fila href="/ajustes/fotos-hd" icono="📷" etiqueta="Fotos en HD" />
         <Fila
           href="/ajustes/papelera"
           icono="🗑"

@@ -14,6 +14,19 @@ export interface Resultado<T> {
   error: string | null;
 }
 
+/** Una foto lista para registrar: la copia normal y, si existe, su copia HD. */
+export interface FotoRegistro {
+  path: string;
+  position: number;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  hdPath?: string | null;
+  hdWidth?: number | null;
+  hdHeight?: number | null;
+  hdBytes?: number | null;
+}
+
 export interface CrearPrendaInput extends CreateItemData {
   /**
    * El id se genera en el cliente ANTES de subir las fotos, porque la ruta
@@ -22,7 +35,7 @@ export interface CrearPrendaInput extends CreateItemData {
    */
   id: string;
   storeId: string;
-  fotos: Array<{ path: string; position: number; width?: number; height?: number; bytes?: number }>;
+  fotos: FotoRegistro[];
 }
 
 export async function crearPrenda(
@@ -60,6 +73,10 @@ export async function crearPrenda(
         width: f.width ?? null,
         height: f.height ?? null,
         bytes: f.bytes ?? null,
+        hd_path: f.hdPath ?? null,
+        hd_width: f.hdWidth ?? null,
+        hd_height: f.hdHeight ?? null,
+        hd_bytes: f.hdBytes ?? null,
         status: 'ready' as const,
       })),
     );
@@ -178,11 +195,11 @@ export async function sincronizarFotos(
   supabase: SupabaseClient,
   itemId: string,
   storeId: string,
-  fotos: Array<{ path: string; position: number; width?: number; height?: number; bytes?: number }>,
+  fotos: FotoRegistro[],
 ): Promise<Resultado<null>> {
   const { data: actuales, error: errorLectura } = await supabase
     .from('item_photos')
-    .select('id, storage_path')
+    .select('id, storage_path, hd_path')
     .eq('item_id', itemId);
 
   if (errorLectura) return { data: null, error: errorLectura.message };
@@ -199,7 +216,11 @@ export async function sincronizarFotos(
 
     // El archivo se borra después de la fila: si esto falla queda un archivo
     // huérfano en Storage (inofensivo), nunca una fila sin archivo.
-    await supabase.storage.from('item-photos').remove(sobrantes.map((s) => s.storage_path));
+    // Las dos copias: la normal y, si la tenía, la HD.
+    const archivos = sobrantes.flatMap((s) =>
+      s.hd_path ? [s.storage_path, s.hd_path as string] : [s.storage_path],
+    );
+    await supabase.storage.from('item-photos').remove(archivos);
   }
 
   if (fotos.length > 0) {
@@ -212,6 +233,10 @@ export async function sincronizarFotos(
         width: f.width ?? null,
         height: f.height ?? null,
         bytes: f.bytes ?? null,
+        hd_path: f.hdPath ?? null,
+        hd_width: f.hdWidth ?? null,
+        hd_height: f.hdHeight ?? null,
+        hd_bytes: f.hdBytes ?? null,
         status: 'ready' as const,
       })),
       { onConflict: 'item_id,position' },

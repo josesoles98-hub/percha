@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   GENDER_META,
   STATUS_META,
+  calidadFoto,
   formatDateTime,
   formatMoney,
   formatShortDate,
@@ -21,7 +22,7 @@ import { buscarOCrearCliente } from '@/lib/data/orders';
 import { cambiarEstado, enviarAPapelera } from '@/lib/data/mutations';
 import { createClient } from '@/lib/supabase/client';
 
-import { ShareSheet } from './ShareSheet';
+import { ShareSheet, type FotoHdInfo } from './ShareSheet';
 import { StatusPill } from './StatusPill';
 import { useToast, vibrar } from './Toast';
 
@@ -43,11 +44,14 @@ export function ItemDetail({
   item,
   store,
   fotoUrls,
+  fotosHd,
   historial,
 }: {
   item: Item;
   store: StoreSettings;
   fotoUrls: string[];
+  /** Copia HD de cada foto, en el mismo orden que `fotoUrls`. */
+  fotosHd: FotoHdInfo[];
   historial: Array<{ id: number; type: string; created_at: string; payload: Record<string, unknown> }>;
 }) {
   const router = useRouter();
@@ -263,6 +267,8 @@ export function ItemDetail({
           <span className="absolute left-3 top-3">
             <StatusPill status={item.effectiveStatus} />
           </span>
+
+          {fotoUrls.length > 0 && <EtiquetaCalidad foto={fotosHd[fotoActiva]} />}
         </div>
 
         {/* ── Datos ─────────────────────────────────────────────────── */}
@@ -559,6 +565,7 @@ export function ItemDetail({
       )}
 
       <ShareSheet
+        fotosHd={fotosHd}
         item={item}
         store={store}
         fotoUrls={fotoUrls}
@@ -625,4 +632,23 @@ function describirEvento(
     default:
       return evento.type;
   }
+}
+
+/** Verificador: dice si la foto que se está viendo tiene copia HD (la que se manda a WhatsApp). */
+function EtiquetaCalidad({ foto }: { foto: FotoHdInfo | undefined }) {
+  const calidad = calidadFoto(foto ?? { hdPath: null, hdWidth: null, hdHeight: null });
+  const medidas = foto?.hdWidth && foto.hdHeight ? ` · ${foto.hdWidth}×${foto.hdHeight}` : '';
+
+  const [texto, color] =
+    calidad === 'hd'
+      ? [`HD${medidas}`, 'bg-[#25D366] text-white']
+      : calidad === 'chica'
+        ? [`Original chico${medidas}`, 'bg-black/60 text-white']
+        : ['Sin HD', 'bg-black/60 text-white'];
+
+  return (
+    <span className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-caption font-semibold ${color}`}>
+      {texto}
+    </span>
+  );
 }
