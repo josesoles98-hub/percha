@@ -28,7 +28,9 @@ const SIGUIENTES: Record<EstadoPedido, EstadoPedido[]> = {
   draft: ['confirmed', 'cancelled'],
   confirmed: ['shipped', 'cancelled'],
   packed: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
+  // 'confirmed' desde 'shipped' es para deshacer un envío marcado por error;
+  // el trigger de prendas no hace nada en ese cambio, así que no descuadra nada.
+  shipped: ['delivered', 'confirmed'],
   delivered: [],
   cancelled: ['draft'],
 };
@@ -334,10 +336,15 @@ export function FichaPedido({
             className={`tap w-full rounded-[--radius-control] px-4 py-3 font-medium disabled:opacity-40 ${
               estado === 'cancelled'
                 ? 'border border-line bg-surface text-status-sold'
-                : 'bg-accent text-accent-ink'
+                : estado === 'confirmed' && pedido.status === 'shipped'
+                  ? 'border border-line bg-surface'
+                  : 'bg-accent text-accent-ink'
             }`}
           >
-            {estado === 'confirmed' && 'Confirmar pedido (marca las prendas vendidas)'}
+            {estado === 'confirmed' &&
+              (pedido.status === 'shipped'
+                ? '↩️ Se marcó enviado por error: volver a confirmado'
+                : 'Confirmar pedido (marca las prendas vendidas)')}
             {estado === 'shipped' && 'Marcar como enviado'}
             {estado === 'delivered' && 'Marcar como entregado'}
             {estado === 'cancelled' && 'Cancelar pedido'}

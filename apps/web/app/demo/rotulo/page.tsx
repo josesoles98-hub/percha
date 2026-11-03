@@ -60,6 +60,7 @@ const PEDIDO_DEMO: Pedido = {
   },
   customerDataSubmittedAt: null,
   packedAt: null,
+  trackingCode: null,
 };
 
 export default function DemoRotuloPage() {

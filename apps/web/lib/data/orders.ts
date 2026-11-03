@@ -297,6 +297,8 @@ export interface PedidoResumen {
   prendas: number;
   destinyAgencyName: string | null;
   shipmentStatus: string | null;
+  /** Código de seguimiento de Shalom; sin él, el envío casi seguro no ha salido. */
+  trackingCode: string | null;
   /** Tache aparte de "empacado": no toca el status real del pedido. */
   packedAt: string | null;
 }
@@ -388,6 +390,7 @@ function mapPedido(fila: Record<string, unknown>, agencias: Map<number, string>)
     customerDataSubmittedAt: (fila.customer_data_submitted_at as string) ?? null,
     destinyAgencyName: envio?.destinyAgencyName ?? null,
     shipmentStatus: envio?.status ?? null,
+    trackingCode: envio?.trackingCode ?? null,
     packedAt: (fila.packed_at as string) ?? null,
   };
 }

@@ -16,6 +16,7 @@ const PEDIDOS_DEMO: PedidoResumen[] = [
     destinyAgencyName: 'ATOCONGO',
     shipmentStatus: 'pending',
     packedAt: null,
+    trackingCode: null,
   },
   {
     id: '2',
@@ -28,6 +29,7 @@ const PEDIDOS_DEMO: PedidoResumen[] = [
     destinyAgencyName: 'AÑO NUEVO',
     shipmentStatus: 'pending',
     packedAt: new Date().toISOString(),
+    trackingCode: null,
   },
   {
     id: '3',
@@ -40,6 +42,7 @@ const PEDIDOS_DEMO: PedidoResumen[] = [
     destinyAgencyName: null,
     shipmentStatus: null,
     packedAt: null,
+    trackingCode: null,
   },
 ];
 

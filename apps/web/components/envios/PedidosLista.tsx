@@ -46,7 +46,6 @@ export function PedidosLista({
   const { mostrar } = useToast();
   const router = useRouter();
   const [pedidos, setPedidos] = useState(pedidosIniciales);
-  const [enviandoTodos, setEnviandoTodos] = useState(false);
 
   const [modoSeleccion, setModoSeleccion] = useState(false);
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
@@ -66,14 +65,8 @@ export function PedidosLista({
     });
   }
 
-  async function marcarTodosEnviados() {
-    if (pedidos.length === 0) return;
-    if (!confirm(`¿Marcar los ${pedidos.length} pedidos como enviados?`)) return;
-    await marcarComoEnviados(pedidos);
-  }
-
   async function marcarComoEnviados(objetivo: PedidoResumen[]) {
-    setEnviandoTodos(true);
+    setAplicando(true);
     const supabase = createClient();
     const idsOk: string[] = [];
 
@@ -90,7 +83,7 @@ export function PedidosLista({
     }
 
     setPedidos((previos) => previos.filter((p) => !idsOk.includes(p.id)));
-    setEnviandoTodos(false);
+    setAplicando(false);
     vibrar();
     mostrar(
       idsOk.length === objetivo.length
@@ -128,6 +121,24 @@ export function PedidosLista({
   async function marcarSeleccionadosEnviados() {
     const objetivo = pedidos.filter((p) => seleccionados.has(p.id) && p.status !== 'cancelled');
     if (objetivo.length === 0) return salirDeSeleccion();
+
+    // "Enviado" saca al pedido de esta lista, así que un clic de más lo hace
+    // desaparecer del inicio de quien está empacando. Sin código de Shalom
+    // casi seguro todavía no salió: se avisa antes de marcarlo.
+    const sinCodigo = objetivo.filter((p) => !p.trackingCode).length;
+    const aviso =
+      sinCodigo > 0
+        ? `\n\n⚠️ ${sinCodigo} de ellos todavía no tienen código de seguimiento de Shalom (no se subió su boleta).`
+        : '';
+    if (
+      !confirm(
+        `¿Marcar ${objetivo.length} ${objetivo.length === 1 ? 'pedido' : 'pedidos'} como enviados? ` +
+          `Saldrán de esta lista.${aviso}`,
+      )
+    ) {
+      return;
+    }
+
     await marcarComoEnviados(objetivo);
     salirDeSeleccion();
   }
@@ -217,17 +228,6 @@ export function PedidosLista({
             className="tap text-label underline underline-offset-4 disabled:opacity-40"
           >
             Seleccionar varios
-          </button>
-        )}
-
-        {!modoSeleccion && (
-          <button
-            type="button"
-            onClick={() => void marcarTodosEnviados()}
-            disabled={enviandoTodos || pedidos.length === 0}
-            className="tap rounded-[--radius-control] border border-line bg-surface px-3 py-2 text-label disabled:opacity-40"
-          >
-            {enviandoTodos ? 'Marcando…' : `🚚 Marcar todos como enviados (${pedidos.length})`}
           </button>
         )}
       </div>
