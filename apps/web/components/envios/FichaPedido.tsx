@@ -76,6 +76,27 @@ export function FichaPedido({
     window.open(buildWhatsAppUrl(lineas.join('\n'), pedido.customer?.phone ?? undefined), '_blank', 'noopener');
   }
 
+  /**
+   * Para el cliente que registró mal su pedido (sin foto, o con fotos que no
+   * sirven para identificar las prendas). Lleva el mismo link de "completar"
+   * porque ahí puede corregir sus datos y subir las fotos que faltan.
+   */
+  function avisarRegistroIncompleto() {
+    const lineas = [
+      `Hola ${pedido.customerName.split(' ')[0] ?? ''} 👋`,
+      '',
+      `Tu pedido ${pedido.code} quedó pendiente porque el registro no se completó correctamente.`,
+      '',
+      'Por favor revisa tus datos y asegúrate de subir las fotos de todas las prendas, para que podamos identificarlas y preparar tu pedido 🙏',
+      '',
+      'Puedes corregirlo aquí (toma un minuto):',
+      linkCompletarPedido(pedido.id),
+      '',
+      `— ${store.name}`,
+    ];
+    window.open(buildWhatsAppUrl(lineas.join('\n'), pedido.customer?.phone ?? undefined), '_blank', 'noopener');
+  }
+
   async function cambiar(estado: EstadoPedido) {
     if (estado === 'cancelled' && !confirm('¿Cancelar el pedido? Las prendas vuelven al inventario.')) {
       return;
@@ -214,6 +235,17 @@ export function FichaPedido({
               📤 Enviar por WhatsApp
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={avisarRegistroIncompleto}
+            className="tap mt-3 w-full rounded-[--radius-control] border border-status-reserved/40 bg-status-reserved/10 px-4 py-3 text-left text-label font-medium"
+          >
+            ⚠️ Registro incompleto: avisarle por WhatsApp
+            <span className="mt-0.5 block text-caption font-normal text-muted">
+              Le pide que revise sus datos y suba las fotos de todas sus prendas.
+            </span>
+          </button>
         </section>
       )}
 
