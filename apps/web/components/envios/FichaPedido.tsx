@@ -305,8 +305,23 @@ export function FichaPedido({
           {pedido.envio.trackingCode && (
             <p className="mt-1 text-label">Código: {pedido.envio.trackingCode}</p>
           )}
+          {pedido.envio.trackingCode && !boletaUrl && (
+            <p className="mt-1 text-caption text-muted">
+              No hay PDF de la boleta guardado: súbelo de nuevo desde Envíos.
+            </p>
+          )}
 
           <div className="mt-3 flex flex-wrap gap-2">
+            {boletaUrl && (
+              <a
+                href={boletaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
+              >
+                📄 Ver boleta (PDF)
+              </a>
+            )}
             <Link
               href={`/pedidos/${pedido.code}/rotulo`}
               className="tap inline-flex rounded-[--radius-control] border border-line bg-bg px-4 py-2.5 text-label"
