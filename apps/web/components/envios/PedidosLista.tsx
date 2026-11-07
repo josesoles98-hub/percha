@@ -24,6 +24,8 @@ const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
   cancelled: '✖️ Cancelado',
 };
 
+const ESTADOS_POR_ENVIAR: EstadoPedido[] = ['draft', 'confirmed', 'packed'];
+
 /**
  * Lista de pedidos, con un botón para marcar/desmarcar "Empacado" sin
  * entrar a cada ficha. Es un tache aparte del status real del pedido (ver
@@ -200,8 +202,27 @@ export function PedidosLista({
     }
   }
 
+  // "Por enviar" = todo lo que todavía no salió (borrador, confirmado o
+  // empacado). Se cuenta por status, no por lo que muestre la lista, para
+  // que dé lo mismo en "Ver historial completo".
+  const porEnviar = pedidos.filter((p) => ESTADOS_POR_ENVIAR.includes(p.status));
+  const yaEmpacados = porEnviar.filter((p) => p.packedAt).length;
+  const porEmpacar = porEnviar.length - yaEmpacados;
+
   return (
     <>
+      <div className="mb-3 rounded-[--radius-card] border border-line bg-surface p-4">
+        <p className="flex items-baseline gap-2">
+          <span className="text-display">{porEnviar.length}</span>
+          <span className="text-label">
+            {porEnviar.length === 1 ? 'pedido por enviar' : 'pedidos por enviar'}
+          </span>
+        </p>
+        <p className="mt-1 text-caption text-muted">
+          {porEmpacar} por empacar · {yaEmpacados} ya {yaEmpacados === 1 ? 'empacado' : 'empacados'}
+        </p>
+      </div>
+
       <div className="mb-3 flex items-center justify-between gap-2">
         {modoSeleccion ? (
           <div className="flex items-center gap-3">
