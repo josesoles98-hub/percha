@@ -40,11 +40,14 @@ export function FichaPedido({
   store,
   fotosCliente,
   boletaUrl,
+  claveRecojo,
 }: {
   pedido: Pedido;
   store: StoreSettings;
   fotosCliente: string[];
   boletaUrl: string | null;
+  /** Clave de 4 dígitos que Shalom le pide al destinatario para recoger. */
+  claveRecojo: string | null;
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
@@ -151,6 +154,7 @@ export function FichaPedido({
       boletaUrl,
       '',
       pedido.envio?.trackingCode ? `Clave de pedido: ${pedido.envio.trackingCode}` : null,
+      claveRecojo ? `🔑 Clave para recoger tu pedido: ${claveRecojo}` : null,
       '',
       `¡Gracias por elegir ${store.name}! Nos alegra mucho que hayas confiado en nosotros. 🤎`,
       '',

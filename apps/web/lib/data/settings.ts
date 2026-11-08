@@ -23,6 +23,8 @@ export interface CambiosTienda {
   defaultPackageType?: string;
   shippingEnabled?: boolean;
   whatsappNumber?: string | null;
+  /** Clave de 4 dígitos que Shalom le pide al destinatario para recoger. */
+  pickupKey?: string | null;
   /** Lado largo de la copia HD de las fotos: 2048 (alta) o 4000 (máxima). */
   hdMaxSide?: 2048 | 4000;
 }
@@ -51,6 +53,7 @@ export async function actualizarTienda(
     payload.shipping_enabled = cambios.shippingEnabled;
   if (cambios.whatsappNumber !== undefined)
     payload.whatsapp_number = cambios.whatsappNumber?.trim() || null;
+  if (cambios.pickupKey !== undefined) payload.pickup_key = cambios.pickupKey?.trim() || null;
   if (cambios.hdMaxSide !== undefined) payload.hd_max_side = cambios.hdMaxSide;
 
   const { error } = await supabase.from('stores').update(payload).eq('id', storeId);

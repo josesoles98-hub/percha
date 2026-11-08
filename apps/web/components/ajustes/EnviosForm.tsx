@@ -18,12 +18,14 @@ export function EnviosForm({
   origenInicial,
   paqueteInicial,
   whatsappInicial,
+  claveInicial,
   puedeEditar,
 }: {
   storeId: string;
   origenInicial: Agencia | null;
   paqueteInicial: PackageType;
   whatsappInicial: string;
+  claveInicial: string;
   puedeEditar: boolean;
 }) {
   const router = useRouter();
@@ -32,13 +34,22 @@ export function EnviosForm({
   const [origen, setOrigen] = useState<Agencia | null>(origenInicial);
   const [paquete, setPaquete] = useState<PackageType>(paqueteInicial);
   const [whatsapp, setWhatsapp] = useState(whatsappInicial);
+  const [clave, setClave] = useState(claveInicial);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hayCambios =
-    origen?.id !== origenInicial?.id || paquete !== paqueteInicial || whatsapp !== whatsappInicial;
+    origen?.id !== origenInicial?.id ||
+    paquete !== paqueteInicial ||
+    whatsapp !== whatsappInicial ||
+    clave !== claveInicial;
 
   async function guardar() {
+    if (clave && !/^\d{4}$/.test(clave)) {
+      setError('La clave de recojo tiene que ser de 4 dígitos.');
+      return;
+    }
+
     setGuardando(true);
     setError(null);
 
@@ -47,6 +58,7 @@ export function EnviosForm({
       defaultPackageType: paquete,
       shippingEnabled: Boolean(origen),
       whatsappNumber: whatsapp,
+      pickupKey: clave,
     });
 
     setGuardando(false);
@@ -114,6 +126,28 @@ export function EnviosForm({
         <p className="mt-2 text-caption text-muted">
           Cuando un cliente registra su pedido, le mostramos un botón para que te avise por
           WhatsApp que ya lo hizo — muchos no llegan a leer los mensajes que tú les mandas.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="clave-recojo" className="mb-2 block text-label font-medium">
+          Clave de recojo
+        </label>
+        <input
+          id="clave-recojo"
+          type="text"
+          inputMode="numeric"
+          maxLength={4}
+          disabled={!puedeEditar}
+          value={clave}
+          onChange={(e) => setClave(e.target.value.replace(/\D/g, ''))}
+          placeholder="1234"
+          className="w-full rounded-[--radius-control] border border-line bg-surface px-4 py-3 text-label disabled:opacity-50"
+        />
+        <p className="mt-2 text-caption text-muted">
+          La clave de 4 dígitos que le pones a los envíos en el registro masivo de Shalom. Va en el
+          mensaje de WhatsApp con la boleta, para que el cliente sepa qué decir al recoger. Si la
+          cambias en Shalom, cámbiala también aquí.
         </p>
       </div>
 

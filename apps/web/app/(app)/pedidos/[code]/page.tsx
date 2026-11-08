@@ -19,14 +19,21 @@ export default async function PedidoPage({ params }: { params: Promise<{ code: s
 
   // En paralelo: ninguna de las dos depende de la otra, y una tras otra
   // era una vuelta de red de más antes de poder pintar la pantalla.
-  const [fotosCliente, boletaUrl] = await Promise.all([
+  const [fotosCliente, boletaUrl, { data: tienda }] = await Promise.all([
     pedido.customerDataSubmittedAt
       ? listarFotosPedido(supabase, membresia.storeId, pedido.id)
       : Promise.resolve([]),
     pedido.envio ? obtenerUrlBoleta(supabase, membresia.storeId, pedido.envio.id) : Promise.resolve(null),
+    supabase.from('stores').select('pickup_key').eq('id', membresia.storeId).maybeSingle(),
   ]);
 
   return (
-    <FichaPedido pedido={pedido} store={membresia.store} fotosCliente={fotosCliente} boletaUrl={boletaUrl} />
+    <FichaPedido
+      pedido={pedido}
+      store={membresia.store}
+      fotosCliente={fotosCliente}
+      boletaUrl={boletaUrl}
+      claveRecojo={(tienda?.pickup_key as string | null) ?? null}
+    />
   );
 }
