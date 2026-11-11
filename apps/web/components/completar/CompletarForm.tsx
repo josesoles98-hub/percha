@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { buildWhatsAppUrl, PACKAGE_TYPES, validarDocumento, type DocType, type PackageType } from '@percha/core';
 
+import { LogoTienda } from '@/components/LogoTienda';
 import {
   enviarDatosPedido,
   obtenerDatosPedido,
@@ -189,8 +190,7 @@ export function CompletarForm({
 
     return (
       <Centro>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-tienda.jpg" alt={datos.storeName} className="mb-6 w-full max-w-56 rounded-[--radius-card]" />
+        <LogoTienda url={datos.logoUrl} oscuro={datos.logoDark} nombre={datos.storeName} variante="chico" />
         <div className="text-5xl" aria-hidden>
           ✅
         </div>
@@ -254,10 +254,7 @@ export function CompletarForm({
   return (
     <div className="mx-auto max-w-md px-4 pb-10 pt-safe">
       <header className="pb-2 pt-6 text-center">
-        <div className="mx-auto flex justify-center rounded-[--radius-card] bg-black px-6 py-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-tienda.jpg" alt={datos.storeName} className="h-auto w-full max-w-64" />
-        </div>
+        <LogoTienda url={datos.logoUrl} oscuro={datos.logoDark} nombre={datos.storeName} variante="cabecera" />
         <h1 className="mt-5 text-title tracking-tight">Pedido {datos.code}</h1>
         <p className="mt-1 text-label text-muted">
           Completa tus datos para que podamos enviarte tu pedido.

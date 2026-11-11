@@ -54,6 +54,7 @@ export default async function AjustesPage() {
           valor={`${store.reserveDays} ${store.reserveDays === 1 ? 'día' : 'días'}`}
         />
         <Fila href="/ajustes/compartir" icono="💬" etiqueta="Mensaje para compartir" />
+        <Fila href="/ajustes/logo" icono="🖼" etiqueta="Logo" />
       </Seccion>
 
       <Seccion titulo="Envíos">

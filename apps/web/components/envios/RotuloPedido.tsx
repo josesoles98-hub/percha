@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { StoreSettings } from '@percha/core';
 
 import { marcarRotuloImpreso, type Pedido } from '@/lib/data/orders';
+import type { LogoDeRotulo } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/client';
 
 import { RotuloCard } from './RotuloCard';
@@ -24,7 +25,16 @@ import { RotuloCard } from './RotuloCard';
  * layout ya sale sin la barra de navegación porque la ruta vive fuera de
  * (app), igual que /nueva.
  */
-export function RotuloPedido({ pedido, store }: { pedido: Pedido; store: StoreSettings }) {
+export function RotuloPedido({
+  pedido,
+  store,
+  logo,
+}: {
+  pedido: Pedido;
+  store: StoreSettings;
+  /** Logo de la tienda; sin esto (demo) se usa el de siempre. */
+  logo?: LogoDeRotulo;
+}) {
   const router = useRouter();
   const [modoA4, setModoA4] = useState(false);
   const envio = pedido.envio;
@@ -91,6 +101,8 @@ export function RotuloPedido({ pedido, store }: { pedido: Pedido; store: StoreSe
             docNumber: pedido.customer?.docNumber,
             phone: pedido.customer?.phone,
             orderCode: pedido.code,
+            logoUrl: logo?.logoUrl,
+            logoInvertir: logo?.invertir,
           }}
         />
       </div>

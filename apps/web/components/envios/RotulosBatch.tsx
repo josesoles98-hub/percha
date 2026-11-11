@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { marcarRotuloImpreso, type EnvioPendiente } from '@/lib/data/orders';
+import type { LogoDeRotulo } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/client';
 
 import { RotuloCard } from './RotuloCard';
@@ -23,7 +24,14 @@ import { RotuloCard } from './RotuloCard';
  * registra alguien nuevo, se distingue de un vistazo (atenuado) sin tener
  * que recordar cuáles ya salieron.
  */
-export function RotulosBatch({ envios: enviosIniciales }: { envios: EnvioPendiente[] }) {
+export function RotulosBatch({
+  envios: enviosIniciales,
+  logo,
+}: {
+  envios: EnvioPendiente[];
+  /** Logo de la tienda; sin esto (demo) se usa el de siempre. */
+  logo?: LogoDeRotulo;
+}) {
   const router = useRouter();
   const [envios, setEnvios] = useState(enviosIniciales);
   const [modoA4, setModoA4] = useState(false);
@@ -124,6 +132,8 @@ export function RotulosBatch({ envios: enviosIniciales }: { envios: EnvioPendien
                     docNumber: envio.docNumber,
                     phone: envio.phone,
                     orderCode: envio.orderCode,
+                    logoUrl: logo?.logoUrl,
+                    logoInvertir: logo?.invertir,
                   }}
                 />
               </div>

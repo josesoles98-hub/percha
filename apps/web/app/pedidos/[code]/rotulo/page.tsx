@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { RotuloPedido } from '@/components/envios/RotuloPedido';
 import { getMembresia } from '@/lib/data/inventory';
 import { getPedido } from '@/lib/data/orders';
+import { logoDeRotulo } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -25,5 +26,7 @@ export default async function RotuloPage({ params }: { params: Promise<{ code: s
   // Sin envío no hay agencia de destino ni nada que pegar en un paquete.
   if (!pedido || !pedido.envio) notFound();
 
-  return <RotuloPedido pedido={pedido} store={membresia.store} />;
+  const logo = await logoDeRotulo(supabase, membresia.storeId);
+
+  return <RotuloPedido pedido={pedido} store={membresia.store} logo={logo} />;
 }

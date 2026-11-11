@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { RotulosBatch } from '@/components/envios/RotulosBatch';
 import { getMembresia } from '@/lib/data/inventory';
 import { listarEnviosPendientes } from '@/lib/data/orders';
+import { logoDeRotulo } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,10 @@ export default async function RotulosBatchPage() {
   const membresia = await getMembresia(supabase);
   if (!membresia) redirect('/bienvenida');
 
-  const envios = await listarEnviosPendientes(supabase, membresia.storeId);
+  const [envios, logo] = await Promise.all([
+    listarEnviosPendientes(supabase, membresia.storeId),
+    logoDeRotulo(supabase, membresia.storeId),
+  ]);
 
-  return <RotulosBatch envios={envios} />;
+  return <RotulosBatch envios={envios} logo={logo} />;
 }

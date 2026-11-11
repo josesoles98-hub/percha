@@ -48,11 +48,18 @@ async function cargarPedido(orderId: string) {
       `id, code, status, store_id, customer_id, customer_data_submitted_at,
        customers ( full_name, doc_type, doc_number, phone ),
        shipments ( destiny_agency_id, package_type, packages_count ),
-       stores ( name, whatsapp_number )`,
+       stores ( name, whatsapp_number, logo_path, logo_dark )`,
     )
     .eq('id', orderId)
     .maybeSingle();
   return data;
+}
+
+// El logo vive en un bucket público: se manda la URL directa. null = la
+// tienda no subió logo (el formulario muestra solo su nombre).
+function urlLogo(path: string | null): string | null {
+  if (!path) return null;
+  return supabase.storage.from('store-logos').getPublicUrl(path).data.publicUrl;
 }
 
 async function manejarGet(orderId: string | null) {
@@ -72,7 +79,12 @@ async function manejarGet(orderId: string | null) {
     package_type: string;
     packages_count: number;
   } | undefined;
-  const tienda = pedido.stores as { name: string; whatsapp_number: string | null } | null;
+  const tienda = pedido.stores as {
+    name: string;
+    whatsapp_number: string | null;
+    logo_path: string | null;
+    logo_dark: boolean;
+  } | null;
 
   // El cliente no tiene sesión, así que no puede consultar shalom_agencies
   // directamente (esa tabla exige `authenticated`): se la mandamos ya
@@ -88,6 +100,8 @@ async function manejarGet(orderId: string | null) {
     agencias: agencias ?? [],
     storeName: tienda?.name ?? 'la tienda',
     whatsappNumber: tienda?.whatsapp_number ?? null,
+    logoUrl: urlLogo(tienda?.logo_path ?? null),
+    logoDark: tienda?.logo_dark ?? false,
     cancelado: pedido.status === 'cancelled',
     yaCompletado: Boolean(pedido.customer_data_submitted_at),
     customerName: cliente?.full_name ?? '',

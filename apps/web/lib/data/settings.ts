@@ -27,6 +27,12 @@ export interface CambiosTienda {
   pickupKey?: string | null;
   /** Lado largo de la copia HD de las fotos: 2048 (alta) o 4000 (máxima). */
   hdMaxSide?: 2048 | 4000;
+  /** Ruta del logo en el bucket store-logos (null = sin logo). */
+  logoPath?: string | null;
+  /** true si el logo es de letras claras sobre fondo negro. */
+  logoDark?: boolean;
+  /** Variante del logo para imprimir el rótulo (null = usar el logo normal). */
+  rotuloLogoPath?: string | null;
 }
 
 export async function actualizarTienda(
@@ -55,6 +61,9 @@ export async function actualizarTienda(
     payload.whatsapp_number = cambios.whatsappNumber?.trim() || null;
   if (cambios.pickupKey !== undefined) payload.pickup_key = cambios.pickupKey?.trim() || null;
   if (cambios.hdMaxSide !== undefined) payload.hd_max_side = cambios.hdMaxSide;
+  if (cambios.logoPath !== undefined) payload.logo_path = cambios.logoPath;
+  if (cambios.logoDark !== undefined) payload.logo_dark = cambios.logoDark;
+  if (cambios.rotuloLogoPath !== undefined) payload.rotulo_logo_path = cambios.rotuloLogoPath;
 
   const { error } = await supabase.from('stores').update(payload).eq('id', storeId);
   return { data: null, error: error?.message ?? null };
@@ -158,4 +167,37 @@ export async function marcarTodasLeidas(
     .update({ read_at: new Date().toISOString() })
     .eq('store_id', storeId)
     .is('read_at', null);
+}
+
+/** URL pública de un logo guardado en el bucket store-logos (es público a propósito). */
+export function urlPublicaLogo(supabase: SupabaseClient, path: string | null | undefined): string | null {
+  if (!path) return null;
+  return supabase.storage.from('store-logos').getPublicUrl(path).data.publicUrl;
+}
+
+export interface LogoDeRotulo {
+  /** null = la tienda no tiene logo: el rótulo sale sin él (nunca el de otra tienda). */
+  logoUrl: string | null;
+  /** El rótulo se imprime en blanco y negro: un logo de letras claras sobre negro hay que invertirlo. */
+  invertir: boolean;
+}
+
+/**
+ * Logo para el rótulo del paquete: la variante pensada para imprimir si la
+ * tienda la tiene; si no, su logo normal (invertido cuando es de fondo negro).
+ */
+export async function logoDeRotulo(supabase: SupabaseClient, storeId: string): Promise<LogoDeRotulo> {
+  const { data } = await supabase
+    .from('stores')
+    .select('logo_path, logo_dark, rotulo_logo_path')
+    .eq('id', storeId)
+    .maybeSingle();
+
+  if (data?.rotulo_logo_path) {
+    return { logoUrl: urlPublicaLogo(supabase, data.rotulo_logo_path as string), invertir: false };
+  }
+  return {
+    logoUrl: urlPublicaLogo(supabase, data?.logo_path as string | null),
+    invertir: Boolean(data?.logo_dark),
+  };
 }

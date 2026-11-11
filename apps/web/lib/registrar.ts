@@ -19,6 +19,9 @@ export interface Agencia {
 }
 
 export interface DatosTiendaPublico {
+  /** Logo de la tienda: undefined = la función aún no lo manda; null = sin logo. */
+  logoUrl?: string | null;
+  logoDark?: boolean;
   storeName: string;
   defaultPackageType: string;
   whatsappNumber: string | null;

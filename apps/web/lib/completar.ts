@@ -22,6 +22,9 @@ export interface Agencia {
 
 export interface DatosPedidoPublico {
   code: string;
+  /** Logo de la tienda: undefined = la función aún no lo manda; null = sin logo. */
+  logoUrl?: string | null;
+  logoDark?: boolean;
   storeName: string;
   whatsappNumber: string | null;
   cancelado: boolean;

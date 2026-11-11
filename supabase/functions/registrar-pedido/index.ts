@@ -34,12 +34,19 @@ function json(data: unknown, status = 200): Response {
   return Response.json(data, { status, headers: CORS_HEADERS });
 }
 
+// El logo vive en un bucket público: se manda la URL directa. null = la
+// tienda no subió logo (el formulario muestra solo su nombre).
+function urlLogo(path: string | null): string | null {
+  if (!path) return null;
+  return supabase.storage.from('store-logos').getPublicUrl(path).data.publicUrl;
+}
+
 async function manejarGet(storeId: string | null) {
   if (!storeId) return json({ error: 'Falta storeId' }, 400);
 
   const { data: tienda } = await supabase
     .from('stores')
-    .select('name, shalom_origin_agency_id, default_package_type, whatsapp_number')
+    .select('name, shalom_origin_agency_id, default_package_type, whatsapp_number, logo_path, logo_dark')
     .eq('id', storeId)
     .maybeSingle();
   if (!tienda) return json({ error: 'No encontramos esa tienda' }, 404);
@@ -55,6 +62,8 @@ async function manejarGet(storeId: string | null) {
 
   return json({
     storeName: tienda.name,
+    logoUrl: urlLogo(tienda.logo_path),
+    logoDark: tienda.logo_dark ?? false,
     defaultPackageType: tienda.default_package_type,
     whatsappNumber: tienda.whatsapp_number,
     agencias: agencias ?? [],

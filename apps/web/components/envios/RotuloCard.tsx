@@ -5,6 +5,13 @@ export interface DatosRotulo {
   docNumber?: string | null;
   phone?: string | null;
   orderCode: string;
+  /**
+   * undefined = demo / versión vieja: logo de siempre (recortado e invertido).
+   * null = la tienda no tiene logo. string = el logo de la tienda.
+   */
+  logoUrl?: string | null;
+  /** Logo de letras claras sobre fondo negro: se invierte para imprimir. */
+  logoInvertir?: boolean;
 }
 
 /** '8/09/26' — la fecha en que se imprime (se pega al paquete ese día), no la del pedido. */
@@ -35,24 +42,35 @@ export function RotuloCard({ datos }: { datos: DatosRotulo }) {
     // break-inside-avoid: si por lo que sea no cupiera entera, que la
     // corte a ella el navegador donde toca, no a la mitad.
     <div className="break-inside-avoid rounded-none border-2 border-ink p-3 print:border-black">
-      {/*
-        El archivo logo-tienda.jpg trae de fábrica ~32% de fondo negro en
-        blanco arriba del texto (y casi nada abajo) — mostrado entero eso
-        se traducía en un salto de espacio antes del logo. Se recorta con
-        CSS, sin tocar el archivo: el contenedor usa el aspect-ratio de
-        SOLO el texto (medido en el archivo real, 715×257 de los 715×380
-        totales) y `object-bottom` alinea la imagen contra el borde de
-        abajo, dejando fuera de vista justo esa franja vacía de arriba.
-      */}
-      <div className="relative mx-auto mb-2 aspect-[715/257] w-1/2 max-w-40 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-tienda.jpg"
-          alt=""
-          aria-hidden
-          className="absolute inset-0 size-full object-cover object-bottom invert"
-        />
-      </div>
+      {datos.logoUrl === undefined ? (
+        /*
+          Logo de siempre (solo demos): el archivo logo-tienda.jpg trae de
+          fábrica ~32% de fondo negro en blanco arriba del texto — mostrado
+          entero eso se traducía en un salto de espacio antes del logo. Se
+          recorta con CSS, sin tocar el archivo: el contenedor usa el
+          aspect-ratio de SOLO el texto (715×257 de los 715×380 totales) y
+          `object-bottom` alinea la imagen contra el borde de abajo.
+        */
+        <div className="relative mx-auto mb-2 aspect-[715/257] w-1/2 max-w-40 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-tienda.jpg"
+            alt=""
+            aria-hidden
+            className="absolute inset-0 size-full object-cover object-bottom invert"
+          />
+        </div>
+      ) : datos.logoUrl ? (
+        <div className="mx-auto mb-2 w-1/2 max-w-40">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={datos.logoUrl}
+            alt=""
+            aria-hidden
+            className={`h-auto w-full object-contain ${datos.logoInvertir ? 'invert' : ''}`}
+          />
+        </div>
+      ) : null}
 
       <Campo etiqueta="Destino" valor={datos.destinyAgencyName ?? '—'} grande />
       <Campo etiqueta="Destinatario" valor={datos.customerName} />
