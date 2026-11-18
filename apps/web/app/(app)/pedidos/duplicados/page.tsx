@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { PedidosDuplicadosLista } from '@/components/envios/PedidosDuplicadosLista';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { listarPedidosDuplicados } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

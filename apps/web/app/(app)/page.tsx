@@ -4,7 +4,8 @@ import { formatMoney } from '@percha/core';
 
 import { InventoryGrid } from '@/components/InventoryGrid';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
-import { firmarFotos, getCatalogos, getMembresia, listarPrendas } from '@/lib/data/inventory';
+import { firmarFotos, getCatalogos, listarPrendas } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { claveFiltros, contarFiltrosActivos, filtrosDesdeParams, type ParamsPlanos } from '@/lib/filtros-url';
 import { createClient } from '@/lib/supabase/server';
 

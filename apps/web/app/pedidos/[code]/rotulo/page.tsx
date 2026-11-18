@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { RotuloPedido } from '@/components/envios/RotuloPedido';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getPedido } from '@/lib/data/orders';
 import { logoDeRotulo } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/server';

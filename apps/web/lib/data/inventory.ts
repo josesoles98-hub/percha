@@ -7,7 +7,7 @@ import {
   type StoreSettings,
 } from '@percha/core';
 
-import { ITEM_COLUMNS, STORE_COLUMNS, mapItem, mapStore, type ItemRow, type StoreRow } from './mappers';
+import { ITEM_COLUMNS, mapItem, type ItemRow } from './mappers';
 
 /**
  * Consultas del inventario.
@@ -28,40 +28,6 @@ export interface Membresia {
   storeId: string;
   role: 'owner' | 'seller';
   store: StoreSettings;
-}
-
-/**
- * Sin membresía todavía, intenta unirse solo a una tienda que la haya
- * invitado (ver migración 0019) antes de rendirse. Sin esto, alguien
- * invitado que entra por primera vez terminaría en /bienvenida creando
- * SU PROPIA tienda en vez de sumarse a la de quien lo invitó.
- */
-export async function getMembresia(supabase: SupabaseClient): Promise<Membresia | null> {
-  let { data } = await supabase
-    .from('store_members')
-    .select(`role, stores!inner(${STORE_COLUMNS})`)
-    .limit(1)
-    .maybeSingle();
-
-  if (!data) {
-    const { data: tiendaUnida } = await supabase.rpc('aceptar_invitacion');
-    if (tiendaUnida) {
-      ({ data } = await supabase
-        .from('store_members')
-        .select(`role, stores!inner(${STORE_COLUMNS})`)
-        .limit(1)
-        .maybeSingle());
-    }
-  }
-
-  if (!data) return null;
-
-  const store = data.stores as unknown as StoreRow;
-  return {
-    storeId: store.id,
-    role: data.role as 'owner' | 'seller',
-    store: mapStore(store),
-  };
 }
 
 export type Orden = 'recientes' | 'precio_asc' | 'precio_desc' | 'vencimiento';

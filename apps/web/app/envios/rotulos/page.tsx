@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { RotulosBatch } from '@/components/envios/RotulosBatch';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { listarEnviosPendientes } from '@/lib/data/orders';
 import { logoDeRotulo } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/server';

@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 
 import { PrendaForm, type PrendaFormProps } from '@/components/PrendaForm';
 import { ToastProvider } from '@/components/Toast';
-import { getCatalogos, getMembresia, getPrendaPorCodigo } from '@/lib/data/inventory';
+import { getCatalogos, getPrendaPorCodigo } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { isSupabaseConfigured } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 

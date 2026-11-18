@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { CerrarSesion } from '@/components/ajustes/CerrarSesion';
 import { ExportarCsv } from '@/components/ajustes/ExportarCsv';
 import { InstalarApp } from '@/components/ajustes/InstalarApp';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getAgencia } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

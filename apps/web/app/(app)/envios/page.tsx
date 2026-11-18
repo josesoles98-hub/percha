@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { PanelEnvios } from '@/components/envios/PanelEnvios';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getAgencia, listarEnviosPendientes, listarLotes } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

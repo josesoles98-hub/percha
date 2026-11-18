@@ -2,7 +2,8 @@ import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { ItemDetail } from '@/components/ItemDetail';
-import { firmarFotos, getMembresia, getPrendaPorCodigo } from '@/lib/data/inventory';
+import { firmarFotos, getPrendaPorCodigo } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';

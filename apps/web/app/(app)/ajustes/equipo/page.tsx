@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { EquipoPanel } from '@/components/ajustes/EquipoPanel';
 import { listarInvitaciones, listarMiembros } from '@/lib/data/equipo';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';

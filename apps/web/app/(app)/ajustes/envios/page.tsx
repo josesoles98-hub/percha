@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import type { PackageType } from '@percha/core';
 
 import { EnviosForm } from '@/components/ajustes/EnviosForm';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getAgencia } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

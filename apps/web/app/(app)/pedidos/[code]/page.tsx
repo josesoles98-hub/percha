@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { FichaPedido } from '@/components/envios/FichaPedido';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getPedido, listarFotosPedido, obtenerUrlBoleta } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

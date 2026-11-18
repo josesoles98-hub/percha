@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { formatMoney, type DashboardStats } from '@percha/core';
 
 import { obtenerGananciaHoy } from '@/lib/data/finanzas';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';

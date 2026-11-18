@@ -5,7 +5,7 @@ import { CalidadHdForm } from '@/components/ajustes/CalidadHdForm';
 import { FotosHdPanel, type FiltroHd } from '@/components/ajustes/FotosHdPanel';
 import { ToastProvider } from '@/components/Toast';
 import { listarCalidadFotos, resumirCalidad } from '@/lib/data/fotos-hd';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';

@@ -4,7 +4,7 @@ import { esDelMismoMes, formatMoney, summarizeProfitDays } from '@percha/core';
 import { DescargarGanancias } from '@/components/DescargarGanancias';
 import { GastosPanel } from '@/components/GastosPanel';
 import { agruparPorDia, listarGastos, listarPrendasVendidas } from '@/lib/data/finanzas';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';

@@ -1,7 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 
 import { createClient } from '@/lib/supabase/client';
 
@@ -14,11 +15,22 @@ import { createClient } from '@/lib/supabase/client';
  * misma llamada.
  */
 export default function BienvenidaPage() {
+  // useSearchParams exige un Suspense alrededor al prerenderizar.
+  return (
+    <Suspense>
+      <Bienvenida />
+    </Suspense>
+  );
+}
+
+function Bienvenida() {
   const router = useRouter();
   const [nombre, setNombre] = useState('');
   const [dias, setDias] = useState(5);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // ?otra=1: ya tiene una tienda y está creando la segunda (desde /tiendas).
+  const otra = useSearchParams().has('otra');
 
   async function crear(event: React.FormEvent) {
     event.preventDefault();
@@ -28,7 +40,7 @@ export default function BienvenidaPage() {
     setError(null);
 
     const supabase = createClient();
-    const { error: rpcError } = await supabase.rpc('bootstrap_store', {
+    const { data: storeId, error: rpcError } = await supabase.rpc('bootstrap_store', {
       p_name: nombre.trim(),
       p_currency: 'PEN',
       p_symbol: 'S/',
@@ -41,6 +53,11 @@ export default function BienvenidaPage() {
       return;
     }
 
+    // La tienda recién creada pasa a ser la activa (ver lib/data/tienda-activa).
+    if (typeof storeId === 'string') {
+      document.cookie = `percha_tienda=${storeId}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    }
+
     router.push('/');
     router.refresh();
   }
@@ -48,8 +65,12 @@ export default function BienvenidaPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-4">
       <header className="space-y-1">
-        <h1 className="text-display">Bienvenido</h1>
-        <p className="text-muted">Dos datos y empezamos.</p>
+        <h1 className="text-display">{otra ? 'Nueva tienda' : 'Bienvenido'}</h1>
+        <p className="text-muted">
+          {otra
+            ? 'Tendrá su propio inventario, pedidos y ajustes de envío.'
+            : 'Dos datos y empezamos.'}
+        </p>
       </header>
 
       <form onSubmit={crear} className="space-y-6">
@@ -116,6 +137,12 @@ export default function BienvenidaPage() {
       <p className="text-caption text-muted">
         Moneda: S/ (soles). Se cambia después en Ajustes.
       </p>
+
+      {otra && (
+        <Link href="/tiendas" className="text-center text-label text-muted underline">
+          Volver a mis tiendas
+        </Link>
+      )}
     </main>
   );
 }

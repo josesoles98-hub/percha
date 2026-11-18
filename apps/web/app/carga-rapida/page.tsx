@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 
 import { CargaRapidaForm } from '@/components/CargaRapidaForm';
 import { ToastProvider } from '@/components/Toast';
-import { getCatalogos, getMembresia } from '@/lib/data/inventory';
+import { getCatalogos } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { isSupabaseConfigured } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 

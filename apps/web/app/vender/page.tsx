@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { VentaRapida } from '@/components/reservas/VentaRapida';
 import { ToastProvider } from '@/components/Toast';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { isSupabaseConfigured } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 

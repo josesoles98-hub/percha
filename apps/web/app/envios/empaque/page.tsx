@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { EmpaqueBatch } from '@/components/envios/EmpaqueBatch';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { listarPedidosParaEmpacar } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

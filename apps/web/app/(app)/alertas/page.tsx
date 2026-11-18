@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { AlertasList } from '@/components/AlertasList';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { listarNotificaciones } from '@/lib/data/settings';
 import { createClient } from '@/lib/supabase/server';
 

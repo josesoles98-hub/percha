@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { ExportarPedidosCsv } from '@/components/envios/ExportarPedidosCsv';
 import { PedidosLista } from '@/components/envios/PedidosLista';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { listarPedidos, listarPedidosDuplicados, type EstadoPedido } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

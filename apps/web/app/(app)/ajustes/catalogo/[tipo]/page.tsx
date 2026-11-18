@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { EditorCatalogo } from '@/components/ajustes/EditorCatalogo';
 import { CATALOGOS, listarCatalogo, type TipoCatalogo } from '@/lib/data/catalogos';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';

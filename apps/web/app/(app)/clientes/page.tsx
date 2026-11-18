@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { formatMoney } from '@percha/core';
 
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { buscarClientes } from '@/lib/data/orders';
 import { createClient } from '@/lib/supabase/server';
 

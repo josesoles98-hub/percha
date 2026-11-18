@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,7 @@ export default async function MasPage() {
   const { count: sinLeer } = await supabase
     .from('notifications')
     .select('id', { count: 'exact', head: true })
+    .eq('store_id', membresia.storeId)
     .is('read_at', null);
 
   return (
@@ -29,6 +30,7 @@ export default async function MasPage() {
       </header>
 
       <div className="divide-y divide-line overflow-hidden rounded-[--radius-card] border border-line bg-surface">
+        <Fila href="/tiendas" icono="🏪" etiqueta="Mis tiendas" valor={membresia.store.name} />
         <Fila
           href="/alertas"
           icono="🔔"

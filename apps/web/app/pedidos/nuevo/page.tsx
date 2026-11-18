@@ -3,7 +3,8 @@ import type { PackageType } from '@percha/core';
 
 import { NuevoPedidoForm } from '@/components/envios/NuevoPedidoForm';
 import { ToastProvider } from '@/components/Toast';
-import { firmarFotos, getMembresia, getPrendaPorCodigo } from '@/lib/data/inventory';
+import { firmarFotos, getPrendaPorCodigo } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getAgencia } from '@/lib/data/orders';
 import { isSupabaseConfigured } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { ColaPublicacion } from '@/components/ColaPublicacion';
-import { getMembresia } from '@/lib/data/inventory';
+import { getMembresia } from '@/lib/data/tienda-activa';
 import { getEstadoCola } from '@/lib/data/publish';
 import { createClient } from '@/lib/supabase/server';
 
