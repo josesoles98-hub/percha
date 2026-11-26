@@ -37,6 +37,7 @@ export default async function MasPage() {
           etiqueta="Alertas"
           valor={sinLeer ? `${sinLeer} sin leer` : undefined}
         />
+        <Fila href="/agente" icono="🤖" etiqueta="Agente IA (WhatsApp)" />
         {membresia.role === 'owner' && <Fila href="/ganancias" icono="💰" etiqueta="Ganancias" />}
         <Fila href="/clientes" icono="👥" etiqueta="Clientes" />
         <Fila href="/carga-rapida" icono="📦" etiqueta="Carga rápida (varias prendas)" />
