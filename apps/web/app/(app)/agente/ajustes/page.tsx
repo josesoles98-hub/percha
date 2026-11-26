@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 
 import { AgenteAjustes } from '@/components/agente/AgenteAjustes';
 import { CEREBRO_INICIAL, HIGHLEVEL_AV_CLUB } from '@/lib/agente/cerebro-inicial';
-import { getAjustesAgente, type AjustesAgente } from '@/lib/data/agente';
+import { CatalogoAjustes } from '@/components/agente/CatalogoAjustes';
+import { aSlug, getAjustesAgente, getAjustesCatalogo, type AjustesAgente } from '@/lib/data/agente';
 import { getMembresia } from '@/lib/data/tienda-activa';
 import { createClient } from '@/lib/supabase/server';
 
@@ -15,13 +16,20 @@ export default async function AgenteAjustesPage() {
   if (!membresia) redirect('/bienvenida');
   if (membresia.role !== 'owner') redirect('/agente');
 
-  const guardados = await getAjustesAgente(supabase, membresia.storeId);
+  const [guardados, catalogo] = await Promise.all([
+    getAjustesAgente(supabase, membresia.storeId),
+    getAjustesCatalogo(supabase, membresia.storeId),
+  ]);
   const esAvClub = /vintage|av club/i.test(membresia.store.name);
 
   const iniciales: AjustesAgente = guardados ?? {
     enabled: false,
     cerebro: CEREBRO_INICIAL,
     model: 'claude-haiku-5-5',
+    dailySummary: true,
+    promoEnabled: false,
+    promoDay: 10,
+    promoMinSoles: 25,
     ...(esAvClub
       ? HIGHLEVEL_AV_CLUB
       : { hlLocationId: '', hlPipelineId: '', hlStageReservo: '', hlStagePagoSaldo: '' }),
@@ -37,6 +45,11 @@ export default async function AgenteAjustesPage() {
       </header>
 
       <AgenteAjustes storeId={membresia.storeId} iniciales={iniciales} />
+
+      <CatalogoAjustes
+        storeId={membresia.storeId}
+        iniciales={{ ...catalogo, slug: catalogo.slug || (esAvClub ? 'av-club' : aSlug(membresia.store.name)) }}
+      />
     </main>
   );
 }

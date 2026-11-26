@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 const ICONO: Record<string, string> = {
   reservation_expired: '⏰',
   expiring_today: '🟠',
+  resumen_diario: '☀️',
 };
 
 export function AlertasList({
@@ -80,7 +81,7 @@ export function AlertasList({
                       </span>
                     )}
                   </p>
-                  {n.body && <p className="mt-0.5 text-label text-muted">{n.body}</p>}
+                  {n.body && <p className="mt-0.5 whitespace-pre-line text-label text-muted">{n.body}</p>}
                   <p className="mt-1 text-caption text-muted">{formatDateTime(n.createdAt)}</p>
                 </div>
               </div>

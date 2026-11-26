@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
-const PUBLIC_PATHS = ['/login', '/auth', '/configurar', '/completar', '/registrar', '/demo'];
+// '/c' = catálogo público de cada tienda (lo abren los clientes, sin cuenta).
+const PUBLIC_PATHS = ['/login', '/auth', '/configurar', '/completar', '/registrar', '/demo', '/c'];
 
 /**
  * Refresca la sesión en cada petición y protege las rutas privadas.

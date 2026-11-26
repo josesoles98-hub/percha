@@ -152,3 +152,68 @@ export async function moverOportunidad(params: {
     },
   });
 }
+
+// ── Oportunidades de una etapa (para el resumen diario) ───────────────
+
+export interface Oportunidad {
+  id: string;
+  name: string;
+  monetaryValue?: number;
+  lastStageChangeAt?: string;
+  createdAt?: string;
+  contact?: { name?: string; phone?: string };
+}
+
+/** Oportunidades abiertas en una etapa del embudo (máx. 100). */
+export async function oportunidadesEnEtapa(locationId: string, pipelineId: string, stageId: string) {
+  const q = new URLSearchParams({
+    location_id: locationId,
+    pipeline_id: pipelineId,
+    pipeline_stage_id: stageId,
+    status: 'open',
+    limit: '100',
+  });
+  const r = await hl<{ opportunities?: Oportunidad[] }>(`/opportunities/search?${q}`);
+  return r.opportunities ?? [];
+}
+
+// ── Contactos con una etiqueta (para la promo de acumulados) ──────────
+
+export interface ContactoHL {
+  id: string;
+  firstName?: string | null;
+  contactName?: string | null;
+  phone?: string | null;
+  tags?: string[];
+}
+
+/** Contactos que tienen una etiqueta (hasta 500, de 100 en 100). */
+export async function contactosConEtiqueta(locationId: string, etiqueta: string) {
+  const todos: ContactoHL[] = [];
+  for (let pagina = 1; pagina <= 5; pagina++) {
+    const r = await hl<{ contacts?: ContactoHL[] }>('/contacts/search', {
+      method: 'POST',
+      body: {
+        locationId,
+        page: pagina,
+        pageLimit: 100,
+        filters: [{ field: 'tags', operator: 'eq', value: etiqueta }],
+      },
+    });
+    const lote = r.contacts ?? [];
+    todos.push(...lote);
+    if (lote.length < 100) break;
+  }
+  // Por si el filtro de la API es aproximado: confirmar la etiqueta.
+  return todos.filter((c) => (c.tags ?? []).some((t) => t.toLowerCase() === etiqueta.toLowerCase()));
+}
+
+/** Id del chat de un contacto (el más reciente), o null. */
+export async function conversacionDeContacto(locationId: string, contactId: string) {
+  const q = new URLSearchParams({ locationId, contactId, limit: '1' });
+  const r = await hl<{ conversations?: Array<{ id: string; lastMessageDate?: number }> }>(
+    `/conversations/search?${q}`,
+    { version: '2021-04-15' },
+  );
+  return r.conversations?.[0] ?? null;
+}

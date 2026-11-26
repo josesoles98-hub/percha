@@ -48,6 +48,73 @@ interface Peticion {
   // Para "reservar", la dueña puede corregir lo que dedujo el agente.
   prenda?: string;
   saldo?: number;
+  /** Prenda de Percha que se marca como reservada o vendida. null = ninguna. */
+  itemId?: string | null;
+  /** Precio de venta en soles, si la dueña lo corrigió. */
+  precio?: number;
+}
+
+function ultimos9(telefono: string | null | undefined) {
+  return (telefono ?? '').replace(/\D/g, '').slice(-9);
+}
+
+/**
+ * Deja la prenda de Percha en el estado que corresponde, para que el
+ * inventario se mantenga solo: reservar → reservada a nombre del cliente;
+ * pago del saldo → vendida. En el pago del saldo, si la dueña no eligió
+ * prenda, se usa la que ya estaba reservada a ese mismo teléfono.
+ */
+async function marcarEnPercha(
+  storeId: string,
+  accion: 'reservar' | 'pago_saldo',
+  itemId: string | null | undefined,
+  cliente: { nombre: string; telefono: string | null },
+  /** Precio que vio/pagó el cliente (de la captura). Manda sobre el de Percha. */
+  precioCentavos: number | null,
+) {
+  let id = itemId ?? null;
+
+  if (!id && accion === 'pago_saldo' && ultimos9(cliente.telefono)) {
+    const { data: reservadas } = await admin
+      .from('items')
+      .select('id, reserved_for_phone')
+      .eq('store_id', storeId)
+      .eq('status', 'reserved')
+      .is('deleted_at', null);
+    const suyas = (reservadas ?? []).filter(
+      (r) => ultimos9(r.reserved_for_phone) === ultimos9(cliente.telefono),
+    );
+    if (suyas.length === 1) id = suyas[0].id;
+  }
+  if (!id) return null;
+
+  const cambios =
+    accion === 'reservar'
+      ? {
+          status: 'reserved',
+          reserved_for_name: cliente.nombre,
+          reserved_for_phone: cliente.telefono,
+          reserved_deposit_cents: 1000,
+          // El precio acordado con el cliente queda en la prenda: cuando
+          // pague el saldo, la venta se registra a ese precio.
+          ...(precioCentavos ? { price_cents: precioCentavos } : {}),
+        }
+      : {
+          status: 'sold',
+          // La venta se registra al precio real del día, no al que quedó en
+          // Percha: así Ganancias cuadra aunque el precio haya cambiado.
+          ...(precioCentavos ? { sold_price_cents: precioCentavos } : {}),
+        };
+
+  const { data, error } = await admin
+    .from('items')
+    .update(cambios)
+    .eq('id', id)
+    .eq('store_id', storeId) // nunca tocar prendas de otra tienda
+    .select('code')
+    .maybeSingle();
+  if (error) throw new Error(`Percha: ${error.message}`);
+  return data?.code ?? null;
 }
 
 function fechaLimaMasDias(dias: number) {
@@ -100,9 +167,11 @@ Deno.serve(async (req) => {
       if (!texto) return responder({ error: 'El mensaje está vacío' }, 400);
 
       // ¿Alguien respondió desde el celular o el cliente volvió a escribir?
-      const mensajes = await mensajesDelChat(draft.hl_conversation_id, 5);
+      // (Una promo no responde a ningún mensaje: no se comprueba.)
+      const esPromo = draft.kind === 'promo';
+      const mensajes = esPromo ? [] : await mensajesDelChat(draft.hl_conversation_id, 5);
       const ultimo = mensajes.at(-1);
-      if (ultimo && ultimo.id !== draft.hl_last_message_id) {
+      if (!esPromo && ultimo && ultimo.id !== draft.hl_last_message_id) {
         await admin
           .from('agent_drafts')
           .update({ status: 'superseded', decided_at: ahora })
@@ -118,13 +187,27 @@ Deno.serve(async (req) => {
         );
       }
 
-      await enviarWhatsApp(draft.hl_contact_id, texto);
+      try {
+        await enviarWhatsApp(draft.hl_contact_id, texto);
+      } catch (e) {
+        // WhatsApp no deja escribir libre si el cliente no habló en 24 h.
+        if (esPromo) {
+          return responder(
+            {
+              error:
+                'WhatsApp no dejó enviarlo porque el cliente no escribe hace más de 24 horas. Usa "Abrir en mi WhatsApp" para mandarlo desde tu celular.',
+            },
+            409,
+          );
+        }
+        throw e;
+      }
       await admin
         .from('agent_drafts')
         .update({ status: 'sent', final_reply: texto, decided_at: ahora })
         .eq('id', draft.id);
 
-      if (draft.proposed_reply && texto !== draft.proposed_reply.trim()) {
+      if (!esPromo && draft.proposed_reply && texto !== draft.proposed_reply.trim()) {
         const delCliente = (draft.transcript as Array<{ de: string; texto: string }>)
           .filter((m) => m.de === 'cliente')
           .slice(-3)
@@ -163,6 +246,13 @@ Deno.serve(async (req) => {
 
       if (draft.suggested_action === 'acumula') {
         await agregarEtiquetas(draft.hl_contact_id, ['acumula']);
+        // La cuenta de días para la promo de acumulados empieza hoy.
+        await admin
+          .from('agent_promos')
+          .upsert(
+            { store_id: draft.store_id, hl_contact_id: draft.hl_contact_id },
+            { onConflict: 'store_id,hl_contact_id', ignoreDuplicates: true },
+          );
       } else if (draft.suggested_action === 'reservar') {
         if (!ajustes.hl_pipeline_id || !ajustes.hl_stage_reservo) {
           return responder({ error: 'Falta la etapa "Reservó" en Ajustes del agente' }, 400);
@@ -201,8 +291,20 @@ Deno.serve(async (req) => {
         return responder({ error: 'Este borrador no tiene ninguna acción' }, 400);
       }
 
+      let codigo: string | null = null;
+      if (draft.suggested_action === 'reservar' || draft.suggested_action === 'pago_saldo') {
+        const precio = peticion.precio ?? datos.precio_soles ?? 0;
+        codigo = await marcarEnPercha(
+          draft.store_id,
+          draft.suggested_action,
+          peticion.itemId,
+          { nombre, telefono: draft.phone },
+          precio > 0 ? Math.round(precio * 100) : null,
+        );
+      }
+
       await admin.from('agent_drafts').update({ action_status: 'done' }).eq('id', draft.id);
-      return responder({ ok: true });
+      return responder({ ok: true, prenda: codigo });
     }
 
     return responder({ error: 'Acción desconocida' }, 400);

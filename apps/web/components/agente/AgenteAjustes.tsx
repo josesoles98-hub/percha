@@ -54,6 +54,64 @@ export function AgenteAjustes({
         />
       </label>
 
+      <label className="tap flex items-center justify-between gap-4 rounded-[--radius-card] border border-line bg-surface p-4">
+        <span>
+          <span className="block font-medium">Resumen de la mañana ☀️</span>
+          <span className="text-caption text-muted">
+            A las 8:00 te llega cuánto vendiste ayer, qué reservas vencen y qué chats esperan.
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          checked={a.dailySummary}
+          onChange={(e) => cambiar('dailySummary', e.target.checked)}
+          className="size-6 accent-[--color-accent]"
+        />
+      </label>
+
+      <section className="rounded-[--radius-card] border border-line bg-surface p-4">
+        <label className="tap flex items-center justify-between gap-4">
+          <span>
+            <span className="block font-medium">Promo para los que acumulan 🎁</span>
+            <span className="text-caption text-muted">
+              Al día {a.promoDay} de acumular, te deja listo un mensaje: una prenda más de S/{a.promoMinSoles} o
+              más en 24 horas y el envío sale gratis. Una vez por cliente; tú lo apruebas.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={a.promoEnabled}
+            onChange={(e) => cambiar('promoEnabled', e.target.checked)}
+            className="size-6 shrink-0 accent-[--color-accent]"
+          />
+        </label>
+        {a.promoEnabled && (
+          <div className="mt-3 grid grid-cols-2 gap-3 text-caption">
+            <label>
+              <span className="mb-1 block text-muted">Día de acumulado</span>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={a.promoDay}
+                onChange={(e) => cambiar('promoDay', Number(e.target.value))}
+                className="w-full rounded-[--radius-control] border border-line bg-bg px-3 py-2 text-label"
+              />
+            </label>
+            <label>
+              <span className="mb-1 block text-muted">Prenda mínima S/</span>
+              <input
+                type="number"
+                min={0}
+                value={a.promoMinSoles}
+                onChange={(e) => cambiar('promoMinSoles', Number(e.target.value))}
+                className="w-full rounded-[--radius-control] border border-line bg-bg px-3 py-2 text-label"
+              />
+            </label>
+          </div>
+        )}
+      </section>
+
       <section>
         <h2 className="mb-1 font-medium">Cerebro</h2>
         <p className="mb-2 text-caption text-muted">
