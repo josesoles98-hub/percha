@@ -303,17 +303,14 @@ export async function buscarPrendasAgente(
     photos: Array<{ path: string; position: number }> | null;
   }>;
   const rutas = filas.map((f) => [...(f.photos ?? [])].sort((a, b) => a.position - b.position)[0]?.path ?? null);
-  // Miniaturas (las fotos enteras pesan ~200 KB: 60 de golpe en el celular es lento).
-  const fotos = await Promise.all(
-    rutas.map((ruta) =>
-      ruta
-        ? supabase.storage
-            .from('item-photos')
-            .createSignedUrl(ruta, 60 * 60, { transform: { width: 240, quality: 70 } })
-            .then((r) => r.data?.signedUrl ?? null)
-        : Promise.resolve(null),
-    ),
-  );
+  // Todas las firmas en UNA sola consulta (firmar de a una tardaba ~12 s);
+  // la grilla carga las fotos de a poco (loading="lazy").
+  const validas = rutas.filter((r): r is string => !!r);
+  const { data: firmadas } = validas.length
+    ? await supabase.storage.from('item-photos').createSignedUrls(validas, 60 * 60)
+    : { data: [] };
+  const urlDe = new Map((firmadas ?? []).map((x) => [x.path, x.signedUrl]));
+  const fotos = rutas.map((r) => (r ? (urlDe.get(r) ?? null) : null));
   return filas.map((f, i) => ({
     id: f.id,
     code: f.code,
