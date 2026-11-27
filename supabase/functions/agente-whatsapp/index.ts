@@ -120,6 +120,9 @@ Reglas generales:
 - Sigue al pie de la letra el CEREBRO DE LA TIENDA de abajo: su tono, lo que puedes responder y lo que NUNCA debes hacer solo.
 - Escribe como en WhatsApp: corto, cálido, en el tono de los ejemplos. Nada de textos largos.
 - Nunca inventes precios, disponibilidad, plazos, fechas de envío ni políticas que no estén en el cerebro.
+- NUNCA digas que algo ya se hizo si no lo ves en el chat o en los DATOS DE PERCHA: no digas "ya te agregamos al grupo", "tu pedido ya salió", "ya registramos tu pago", "te enviamos la guía". Si hace falta que la tienda haga algo, di "te lo confirmamos en un momento ☺️" y márcalo con necesita_humano.
+- Si abajo vienen DATOS DE PERCHA de este cliente, son reales y actuales: úsalos para responder sobre sus pedidos (si ya se registró, si salió, su clave de pedido de Shalom, a qué agencia va). Con esos datos SÍ puedes dar el estado y la clave de pedido, aunque el cerebro diga que eso lo hace la dueña. Nunca des la clave para RECOGER el paquete: esa la manda la dueña.
+- Saludo según la hora de Perú que te damos: antes de las 12:00 "Buenos días", de 12:00 a 18:59 "Buenas tardes", desde las 19:00 "Buenas noches". Si los datos no responden lo que pregunta, márcalo para la dueña.
 - Si el cliente mandó varios mensajes seguidos, respóndelos juntos en un solo mensaje.
 - Si lo que pide necesita a la dueña, márcalo con necesita_humano y, si sirve, deja una respuesta corta de espera ("Te confirmamos en un momento ☺️").
 - Tu respuesta NO se envía sola: la dueña la revisa antes. Igual, escríbela lista para enviar.
@@ -171,10 +174,138 @@ async function fotoEnBase64(url: string) {
   }
 }
 
+// ── Pedidos del cliente en Percha ──────────────────────────────────────
+//
+// Muchos chats son "¿ya salió mi pedido?", "ya me registré", "¿cuándo
+// llega?". Esa información está en Percha: se busca al cliente por su
+// teléfono (y por los códigos PED-… que mencione) y se le pasa al modelo
+// en palabras simples. La clave de recojo NO se incluye: la manda la dueña.
+
+const ESTADO_PEDIDO: Record<string, string> = {
+  draft: 'el cliente registró sus datos; la tienda todavía no lo procesa',
+  confirmed: 'confirmado, por empacar',
+  packed: 'empacado, listo para enviar',
+  shipped: 'enviado',
+  delivered: 'entregado',
+  cancelled: 'anulado',
+};
+const ESTADO_ENVIO: Record<string, string> = {
+  pending: 'aún no registrado en Shalom',
+  exported: 'registrado en Shalom',
+  registered: 'registrado en Shalom',
+  in_transit: 'en camino',
+  delivered: 'entregado en la agencia',
+  returned: 'devuelto',
+  cancelled: 'anulado',
+};
+
+function fechaCorta(iso: string | null | undefined) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('es-PE', {
+    timeZone: 'America/Lima',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+async function datosDePedidos(storeId: string, telefono: string | null, textos: string[]) {
+  const nueve = (telefono ?? '').replace(/\D/g, '').slice(-9);
+  const codigos = [...new Set(textos.join(' ').toUpperCase().match(/\bPED-\d{3,}\b/g) ?? [])].slice(0, 3);
+  if (nueve.length < 9 && !codigos.length) return '';
+
+  const idsClientes: string[] = [];
+  if (nueve.length === 9) {
+    const { data: clientes } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('store_id', storeId)
+      .ilike('phone', `%${nueve}`)
+      .limit(5);
+    idsClientes.push(...(clientes ?? []).map((c) => c.id as string));
+  }
+  if (!idsClientes.length && !codigos.length) return '';
+
+  const filtro = [
+    idsClientes.length ? `customer_id.in.(${idsClientes.join(',')})` : '',
+    codigos.length ? `code.in.(${codigos.join(',')})` : '',
+  ]
+    .filter(Boolean)
+    .join(',');
+
+  const { data: pedidos, error } = await supabase
+    .from('orders')
+    .select(
+      `code, status, created_at, total_cents, paid_cents, customer_data_submitted_at,
+       customers(full_name),
+       order_items(price_cents, items(code, name, brands(name), sizes(label))),
+       shipments(status, tracking_code, registered_at, delivered_at, destino:shalom_agencies!shipments_destiny_agency_id_fkey(name))`,
+    )
+    .eq('store_id', storeId)
+    .or(filtro)
+    .order('created_at', { ascending: false })
+    .limit(3);
+  if (error) {
+    console.error('datosDePedidos', error.message);
+    return null; // no se sabe: mejor no afirmar nada
+  }
+  if (!pedidos?.length) return '';
+
+  type Fila = {
+    code: string;
+    status: string;
+    created_at: string;
+    total_cents: number;
+    paid_cents: number;
+    customer_data_submitted_at: string | null;
+    customers: { full_name: string } | null;
+    order_items: Array<{
+      price_cents: number;
+      items: { code: string; name: string | null; brands: { name: string } | null; sizes: { label: string } | null } | null;
+    }>;
+    shipments: Array<{
+      status: string;
+      tracking_code: string | null;
+      registered_at: string | null;
+      delivered_at: string | null;
+      destino: { name: string } | null;
+    }>;
+  };
+
+  return (pedidos as unknown as Fila[])
+    .map((p) => {
+      const prendas = p.order_items
+        .map((oi) =>
+          [oi.items?.code, oi.items?.brands?.name ?? oi.items?.name, oi.items?.sizes?.label ? `talla ${oi.items.sizes.label}` : '']
+            .filter(Boolean)
+            .join(' '),
+        )
+        .join('; ');
+      const envio = p.shipments[0];
+      return [
+        `- Pedido ${p.code} (${fechaCorta(p.created_at)}) a nombre de ${p.customers?.full_name ?? 'cliente'}: ${ESTADO_PEDIDO[p.status] ?? p.status}.`,
+        prendas ? `  Prendas: ${prendas}.` : '',
+        p.total_cents ? `  Total S/${p.total_cents / 100}, pagado S/${p.paid_cents / 100}.` : '',
+        p.customer_data_submitted_at ? `  Registró sus datos de envío el ${fechaCorta(p.customer_data_submitted_at)}.` : '',
+        envio
+          ? `  Envío Shalom: ${ESTADO_ENVIO[envio.status] ?? envio.status}${envio.destino?.name ? `, a la agencia ${envio.destino.name}` : ''}${envio.tracking_code ? `, clave de pedido (seguimiento Shalom): ${envio.tracking_code}` : ''}${envio.registered_at ? `, registrado el ${fechaCorta(envio.registered_at)}` : ''}.`
+          : '  Todavía sin envío creado.',
+      ]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n');
+}
+
 // ── El corazón: redactar un borrador para un chat ──────────────────────
 
 async function redactar(ajustes: Ajustes, conv: Conversacion, mensajes: Mensaje[]) {
   const ultimos = mensajes.slice(-15);
+  const datosPercha = await datosDePedidos(
+    ajustes.store_id,
+    conv.phone ?? null,
+    ultimos.filter((m) => m.direction === 'inbound').map((m) => m.body ?? ''),
+  ).catch(() => null);
 
   // Fotos que el cliente mandó DESPUÉS de la última respuesta de la tienda
   // (normalmente la captura de la prenda o del pago). Máximo 2.
@@ -208,6 +339,11 @@ async function redactar(ajustes: Ajustes, conv: Conversacion, mensajes: Mensaje[
     `Ahora en Perú es ${horaLima()}.`,
     `Cliente: ${nombre}.`,
     '',
+    datosPercha
+      ? `DATOS DE PERCHA DE ESTE CLIENTE (reales):\n${datosPercha}\n`
+      : datosPercha === ''
+        ? 'No hay pedidos de este cliente en Percha (puede ser cliente nuevo o haber comprado con otro número).\n'
+        : '',
     'Chat (del más antiguo al más reciente):',
     ...ultimos.map(lineaDeMensaje),
     '',
@@ -600,6 +736,19 @@ Deno.serve(async (req) => {
     .select('store_id, cerebro, model, hl_location_id')
     .eq('enabled', true)
     .not('hl_location_id', 'is', null);
+
+  // Modo prueba: {"prueba": "<id del chat>"} redacta la respuesta de ese chat
+  // y la devuelve SIN guardar nada ni avisar. Sirve para probar cambios.
+  const cuerpo = await req.json().catch(() => ({}));
+  if (typeof cuerpo?.prueba === 'string' && tiendas?.[0]) {
+    const t = tiendas[0] as Ajustes;
+    const mensajes = await mensajesDelChat(cuerpo.prueba);
+    const { data: convs } = await supabase.from('agent_drafts').select('phone, contact_name').eq('hl_conversation_id', cuerpo.prueba).limit(1);
+    const conv = { id: cuerpo.prueba, contactId: '', phone: convs?.[0]?.phone ?? null, fullName: convs?.[0]?.contact_name ?? null, lastMessageDate: Date.now() } as Conversacion;
+    const datos = await datosDePedidos(t.store_id, conv.phone ?? null, mensajes.filter((m) => m.direction === 'inbound').map((m) => m.body ?? ''));
+    const { decision, error } = await redactar(t, conv, mensajes);
+    return new Response(JSON.stringify({ datos, decision, error }), { headers: { 'Content-Type': 'application/json' } });
+  }
 
   const resultados = [];
   for (const t of (tiendas ?? []) as Ajustes[]) {
