@@ -43,7 +43,7 @@ const ESQUEMA = {
             type: 'string',
             enum: [...TIPOS],
             description:
-              'casaca: chaqueta, casaca, cortaviento, chaleco, parka. polera: con capucha o buzo/sudadera/hoodie/chompa/suéter. polo: camiseta/t-shirt, manga corta o larga. camisa: con cuello y botones. pantalon: de tela, buzo deportivo, jogger, cargo. jean: de mezclilla. short: pantalón corto/bermuda.',
+              'casaca: chaqueta, casaca, cortaviento, chaleco, parka. polera: con capucha o buzo/sudadera/hoodie/chompa/suéter. polo: camiseta/t-shirt, manga corta o larga. camisa: con cuello y botones. pantalon: de tela, buzo deportivo, jogger, cargo. jean: de mezclilla. short: pantalón corto/bermuda. accesorio: gorra, cap, sombrero, bolso, mochila, cinturón, medias.',
           },
           descripcion: {
             type: 'string',
