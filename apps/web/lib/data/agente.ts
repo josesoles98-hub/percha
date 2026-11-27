@@ -234,6 +234,8 @@ export async function accionAgente(
     saldo?: number;
     itemId?: string | null;
     precio?: number;
+    /** Acción elegida por la dueña cuando el agente no sugirió ninguna. */
+    accion?: 'reservar' | 'pago_saldo';
   },
 ): Promise<{ ok: true; prenda: string | null } | { ok: false; error: string }> {
   const { data, error } = await supabase.functions.invoke('agente-accion', { body: peticion });

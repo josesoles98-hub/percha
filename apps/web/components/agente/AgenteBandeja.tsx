@@ -93,7 +93,7 @@ export function AgenteBandeja({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-caption text-muted" aria-live="polite">
+        <p className="text-caption text-muted" aria-live="polite" suppressHydrationWarning>
           {cargando
             ? "Buscando mensajes nuevos…"
             : `${pendientes.length} ${pendientes.length === 1 ? "chat" : "chats"} por responder · actualizado ${haceCuanto(new Date(actualizado).toISOString())}`}
@@ -183,6 +183,13 @@ function Tarjeta({
   const [itemId, setItemId] = useState<string | null>(
     b.itemMatches.find((p) => p.elegida)?.id ?? null,
   );
+  // Reservar / vendida: lo sugiere el agente, o lo elige la dueña al
+  // confirmar la prenda ("✅ Es esta") aunque el agente no lo haya detectado.
+  const [accionElegida, setAccionElegida] = useState<
+    "reservar" | "pago_saldo" | null
+  >(null);
+  const accion: Borrador["suggestedAction"] =
+    accionElegida ?? b.suggestedAction;
   const precioCaptura = b.actionData.precio_soles || 0;
   // Precio de la venta: el de la captura manda (es la oferta del día); si
   // no se vio, el que tiene la prenda en Percha.
@@ -211,6 +218,7 @@ function Tarjeta({
       itemId: tipo === "accion" ? itemId : undefined,
       precio:
         tipo === "accion" && itemId && precio ? Number(precio) : undefined,
+      accion: tipo === "accion" && accionElegida ? accionElegida : undefined,
     });
     setOcupado(null);
     if (!resultado.ok) {
@@ -231,16 +239,18 @@ function Tarjeta({
 
   const nombre = b.contactName ?? b.phone ?? "Cliente";
   const ultimos = b.transcript.slice(-5);
-  const hayAccion = b.suggestedAction !== "none" && b.actionStatus !== "done";
+  const hecha = b.actionStatus === "done";
+  const hayAccion = accion !== "none" && !hecha;
   const marcaPercha =
-    hayAccion &&
-    (b.suggestedAction === "reservar" || b.suggestedAction === "pago_saldo");
+    hayAccion && (accion === "reservar" || accion === "pago_saldo");
+  // Se puede confirmar una prenda mientras no se haya hecho la acción.
+  const puedeElegir = !hecha;
 
   return (
     <article className="enter rounded-[--radius-card] border border-line bg-bg p-4 shadow-card">
       <header className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="truncate font-semibold">{nombre}</h2>
-        <span className="shrink-0 text-caption text-muted">
+        <span className="shrink-0 text-caption text-muted" suppressHydrationWarning>
           {haceCuanto(b.lastInboundAt)}
         </span>
       </header>
@@ -321,13 +331,12 @@ function Tarjeta({
               </p>
               <ul className="space-y-1.5">
                 {prendas.map((p) => {
-                  const marcada =
-                    marcaPercha && p.id != null && itemId === p.id;
+                  const marcada = p.id != null && itemId === p.id;
                   return (
                     <li key={p.code}>
                       <button
                         type="button"
-                        disabled={!marcaPercha || !p.id}
+                        disabled={!puedeElegir || !p.id}
                         onClick={() => {
                           setItemId(marcada ? null : (p.id ?? null));
                           if (!marcada && !precioCaptura)
@@ -373,9 +382,15 @@ function Tarjeta({
                                 : "🔴 vendida"}
                           </span>
                         </span>
-                        {marcaPercha && p.id && (
-                          <span aria-hidden className="pr-1 text-base">
-                            {marcada ? "☑️" : "⬜"}
+                        {puedeElegir && p.id && (
+                          <span
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-semibold ${
+                              marcada
+                                ? "bg-accent text-accent-ink"
+                                : "border border-accent/50 text-accent"
+                            }`}
+                          >
+                            {marcada ? "✅ Es esta" : "¿Es esta?"}
                           </span>
                         )}
                       </button>
@@ -386,6 +401,31 @@ function Tarjeta({
             </div>
           )}
 
+          {itemId && !marcaPercha && !hecha && (
+            <div className="mt-3 rounded-[--radius-control] border border-accent/40 bg-accent-soft p-3">
+              <p className="text-label font-medium">
+                ¿Qué pasa con{" "}
+                {prendas.find((p) => p.id === itemId)?.code ?? "la prenda"}?
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAccionElegida("reservar")}
+                  className="tap rounded-[--radius-control] border border-line bg-bg px-3 py-2.5 text-label font-medium"
+                >
+                  🟡 La separó
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccionElegida("pago_saldo")}
+                  className="tap rounded-[--radius-control] border border-line bg-bg px-3 py-2.5 text-label font-medium"
+                >
+                  🔴 Pagó todo
+                </button>
+              </div>
+            </div>
+          )}
+
           {buscando ? (
             <BuscadorPrendas
               storeId={storeId}
@@ -393,11 +433,9 @@ function Tarjeta({
               onElegir={(p) => {
                 setAMano(p);
                 setBuscando(false);
-                if (marcaPercha) {
-                  setItemId(p.id);
-                  if (!precioCaptura && p.price_cents)
-                    setPrecio(String(p.price_cents / 100));
-                }
+                setItemId(p.id);
+                if (!precioCaptura && p.price_cents)
+                  setPrecio(String(p.price_cents / 100));
               }}
             />
           ) : (
@@ -425,10 +463,21 @@ function Tarjeta({
 
           {hayAccion && (
             <div className="mt-3 rounded-[--radius-control] border border-accent/30 bg-accent-soft p-3">
-              <p className="text-label font-medium">
-                ✨ {ETIQUETA_ACCION[b.suggestedAction]}
-              </p>
-              {b.suggestedAction === "reservar" && (
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-label font-medium">
+                  ✨ {ETIQUETA_ACCION[accion]}
+                </p>
+                {accionElegida && (
+                  <button
+                    type="button"
+                    onClick={() => setAccionElegida(null)}
+                    className="tap shrink-0 text-caption text-muted underline underline-offset-2"
+                  >
+                    Cambiar
+                  </button>
+                )}
+              </div>
+              {accion === "reservar" && (
                 <div className="mt-2 grid grid-cols-[1fr_6rem] gap-2">
                   <input
                     value={prenda}
@@ -450,7 +499,7 @@ function Tarjeta({
               {marcaPercha && itemId && (
                 <label className="mt-2 flex items-center gap-2 text-caption">
                   <span>
-                    {b.suggestedAction === "reservar"
+                    {accion === "reservar"
                       ? "Precio acordado"
                       : "Precio de venta"}{" "}
                     S/
@@ -468,8 +517,8 @@ function Tarjeta({
               {marcaPercha && (
                 <p className="mt-2 text-caption">
                   {itemId
-                    ? `También se marcará ${prendas.find((p) => p.id === itemId)?.code ?? "la prenda"} como ${b.suggestedAction === "reservar" ? "reservada" : "vendida"} en Percha.`
-                    : b.suggestedAction === "pago_saldo"
+                    ? `También se marcará ${prendas.find((p) => p.id === itemId)?.code ?? "la prenda"} como ${accion === "reservar" ? "reservada" : "vendida"} en Percha.`
+                    : accion === "pago_saldo"
                       ? "Si este cliente tiene una sola prenda reservada en Percha, se marcará como vendida."
                       : "Toca una prenda de arriba para marcarla también como reservada en Percha."}
                 </p>

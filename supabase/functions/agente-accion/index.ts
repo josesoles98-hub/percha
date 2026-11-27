@@ -52,6 +52,11 @@ interface Peticion {
   itemId?: string | null;
   /** Precio de venta en soles, si la dueña lo corrigió. */
   precio?: number;
+  /**
+   * La dueña elige la acción aunque el agente no la haya sugerido
+   * (p. ej. reconoció la prenda pero el cliente aún no mandó comprobante).
+   */
+  accion?: 'reservar' | 'pago_saldo';
 }
 
 function ultimos9(telefono: string | null | undefined) {
@@ -226,6 +231,8 @@ Deno.serve(async (req) => {
 
     // ── Acción en HighLevel ────────────────────────────────────────────
     if (peticion.tipo === 'accion') {
+      const accion: string =
+        peticion.accion === 'reservar' || peticion.accion === 'pago_saldo' ? peticion.accion : draft.suggested_action;
       const { data: ajustes } = await admin
         .from('agent_settings')
         .select('hl_location_id, hl_pipeline_id, hl_stage_reservo, hl_stage_pago_saldo')
@@ -244,7 +251,7 @@ Deno.serve(async (req) => {
         saldo_soles?: number;
       };
 
-      if (draft.suggested_action === 'acumula') {
+      if (accion === 'acumula') {
         await agregarEtiquetas(draft.hl_contact_id, ['acumula']);
         // La cuenta de días para la promo de acumulados empieza hoy.
         await admin
@@ -253,7 +260,7 @@ Deno.serve(async (req) => {
             { store_id: draft.store_id, hl_contact_id: draft.hl_contact_id },
             { onConflict: 'store_id,hl_contact_id', ignoreDuplicates: true },
           );
-      } else if (draft.suggested_action === 'reservar') {
+      } else if (accion === 'reservar') {
         if (!ajustes.hl_pipeline_id || !ajustes.hl_stage_reservo) {
           return responder({ error: 'Falta la etapa "Reservó" en Ajustes del agente' }, 400);
         }
@@ -276,7 +283,7 @@ Deno.serve(async (req) => {
           'contact.saldo_pendiente': saldo,
           'contact.vence_reserva': fechaLimaMasDias(5),
         });
-      } else if (draft.suggested_action === 'pago_saldo') {
+      } else if (accion === 'pago_saldo') {
         if (!ajustes.hl_pipeline_id || !ajustes.hl_stage_pago_saldo) {
           return responder({ error: 'Falta la etapa "Pagó saldo" en Ajustes del agente' }, 400);
         }
@@ -292,11 +299,11 @@ Deno.serve(async (req) => {
       }
 
       let codigo: string | null = null;
-      if (draft.suggested_action === 'reservar' || draft.suggested_action === 'pago_saldo') {
+      if (accion === 'reservar' || accion === 'pago_saldo') {
         const precio = peticion.precio ?? datos.precio_soles ?? 0;
         codigo = await marcarEnPercha(
           draft.store_id,
-          draft.suggested_action,
+          accion,
           peticion.itemId,
           { nombre, telefono: draft.phone },
           precio > 0 ? Math.round(precio * 100) : null,
