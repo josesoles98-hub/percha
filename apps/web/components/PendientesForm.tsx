@@ -24,6 +24,8 @@ interface Pendiente {
 
 /** Prendas a las que les falta precio, talla o marca. */
 const FALTA_ALGO = 'price_cents.eq.0,size_id.is.null,brand_id.is.null';
+/** Las gorras no van aquí (la tienda es solo ropa): las reconoce la IA por la foto. */
+const SIN_GORRAS = 'ai_desc.is.null,and(ai_desc.not.ilike.*gorra*,ai_desc.not.ilike.*jockey*)';
 
 /**
  * Marcas que también son palabras comunes o estampados ("vintage", "classic",
@@ -118,6 +120,7 @@ export function PendientesForm({
       .eq('store_id', storeId)
       .eq('status', 'available')
       .or(FALTA_ALGO)
+      .or(SIN_GORRAS)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .order('code', { ascending: false })
@@ -128,6 +131,7 @@ export function PendientesForm({
       .eq('store_id', storeId)
       .eq('status', 'available')
       .or(FALTA_ALGO)
+      .or(SIN_GORRAS)
       .is('deleted_at', null);
     if (tipoActual) {
       consulta = consulta.eq('ai_tipo', tipoActual);
