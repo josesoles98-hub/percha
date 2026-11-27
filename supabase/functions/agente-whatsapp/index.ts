@@ -48,6 +48,9 @@ const SILENCIO_MS = 45_000;
 const VENTANA_MS = 23 * 60 * 60 * 1000;
 /** Tope por vuelta: acota el tiempo de la función y el gasto. */
 const MAX_CHATS_POR_VUELTA = 6;
+/** Cuántos chats con el último mensaje del cliente se miran en cada vuelta (antes 20: en días
+ * con mucho movimiento los más viejos nunca se revisaban). */
+const CHATS_A_MIRAR = 60;
 
 interface Ajustes {
   store_id: string;
@@ -805,16 +808,32 @@ async function avisar(storeId: string, titulo: string, cuerpo: string) {
 }
 
 async function revisarTienda(ajustes: Ajustes) {
-  const chats = await chatsEsperandoRespuesta(ajustes.hl_location_id);
+  const chats = await chatsEsperandoRespuesta(ajustes.hl_location_id, CHATS_A_MIRAR);
   const ahora = Date.now();
   const resultados: Array<Record<string, unknown>> = [];
   let procesados = 0;
+
+  // Hasta qué mensaje ya redactó el agente en cada chat: así no vuelve a
+  // pedirle a HighLevel los mensajes de chats que ya tienen su borrador.
+  const { data: hechos } = await supabase
+    .from('agent_drafts')
+    .select('hl_conversation_id, last_inbound_at')
+    .eq('store_id', ajustes.store_id)
+    .in('hl_conversation_id', chats.map((c) => c.id))
+    .gte('last_inbound_at', new Date(ahora - 2 * VENTANA_MS).toISOString());
+  const ultimoRedactado = new Map<string, number>();
+  for (const h of hechos ?? []) {
+    const t = Date.parse(h.last_inbound_at);
+    if (t > (ultimoRedactado.get(h.hl_conversation_id) ?? 0)) ultimoRedactado.set(h.hl_conversation_id, t);
+  }
 
   for (const conv of chats) {
     if (procesados >= MAX_CHATS_POR_VUELTA) break;
     const edad = ahora - conv.lastMessageDate;
     if (edad > VENTANA_MS) continue; // fuera de las 24 h: ya no se puede responder libre
     if (edad < SILENCIO_MS) continue; // el cliente sigue escribiendo
+    // Ya hay borrador para su último mensaje (margen de 2 s por redondeos).
+    if ((ultimoRedactado.get(conv.id) ?? 0) >= conv.lastMessageDate - 2000) continue;
 
     const mensajes = await mensajesDelChat(conv.id);
     const ultimo = mensajes.at(-1);

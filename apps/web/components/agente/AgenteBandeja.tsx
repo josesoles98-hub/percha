@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 
 import { accionAgente, type Borrador } from "@/lib/data/agente";
 import { createClient } from "@/lib/supabase/client";
@@ -29,15 +29,60 @@ export function AgenteBandeja({
   recientes: Borrador[];
 }) {
   const router = useRouter();
+  const [cargando, startTransition] = useTransition();
+  const [actualizado, setActualizado] = useState(() => Date.now());
+  const [, setTic] = useState(0);
 
-  // El agente trabaja solo cada minuto: la bandeja se refresca sola.
-  useEffect(() => {
-    const id = setInterval(() => router.refresh(), 30_000);
-    return () => clearInterval(id);
+  const refrescar = useCallback(() => {
+    startTransition(() => {
+      router.refresh();
+      setActualizado(Date.now());
+    });
   }, [router]);
+
+  // El agente trabaja solo cada minuto: la bandeja se refresca sola mientras
+  // está a la vista, y en cuanto vuelves a la app (en el celular el reloj se
+  // pausa cuando la app queda en segundo plano).
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") refrescar();
+      setTic((t) => t + 1);
+    }, 20_000);
+    const alVolver = () => {
+      if (document.visibilityState === "visible") refrescar();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("focus", alVolver);
+    window.addEventListener("online", alVolver);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", alVolver);
+      window.removeEventListener("focus", alVolver);
+      window.removeEventListener("online", alVolver);
+    };
+  }, [refrescar]);
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-caption text-muted" aria-live="polite">
+          {cargando
+            ? "Buscando mensajes nuevos…"
+            : `${pendientes.length} ${pendientes.length === 1 ? "chat" : "chats"} por responder · actualizado ${haceCuanto(new Date(actualizado).toISOString())}`}
+        </p>
+        <button
+          type="button"
+          onClick={refrescar}
+          disabled={cargando}
+          className="tap flex shrink-0 items-center gap-2 rounded-[--radius-control] border border-line bg-surface px-3 py-2 text-label disabled:opacity-60"
+        >
+          <span aria-hidden className={cargando ? "inline-block animate-spin" : "inline-block"}>
+            ↻
+          </span>
+          {cargando ? "Cargando…" : "Refrescar"}
+        </button>
+      </div>
+
       {pendientes.length === 0 ? (
         <section className="flex flex-col items-center gap-3 py-16 text-center">
           <div className="text-5xl" aria-hidden>
