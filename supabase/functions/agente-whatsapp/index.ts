@@ -28,6 +28,7 @@ import {
   type Conversacion,
   type Mensaje,
 } from '../_shared/highlevel.ts';
+import { distancia, huellaDeJpeg } from '../_shared/huella.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -492,7 +493,15 @@ async function prepararBorrador(ajustes: Ajustes, conv: Conversacion, mensajes: 
     .slice(-6)
     .filter((m) => m.direction === 'inbound')
     .map((m) => m.body ?? '');
-  const prendas = await buscarPrendas(ajustes.model, ajustes.store_id, decision, imagenes, textosCliente);
+  // Fotos del cliente en el chat reciente, no solo las nuevas: cuando manda
+  // el comprobante, la foto de la prenda quedó unos mensajes más arriba.
+  const urlsFotosCliente = mensajes
+    .slice(-15)
+    .filter((m) => m.direction === 'inbound')
+    .flatMap((m) => m.attachments ?? [])
+    .filter((a) => /\.(jpe?g)$/i.test(a))
+    .slice(-4);
+  const prendas = await buscarPrendas(ajustes.model, ajustes.store_id, decision, imagenes, textosCliente, urlsFotosCliente);
   const reconocida = prendas.find((p) => p.elegida);
   const prenda = await prendaDelChat(ajustes.store_id, conv.id, decision, reconocida);
   const propuesta = aplicarPlantillas(decision, prenda, reconocida);
@@ -764,12 +773,109 @@ async function prendasPorCodigo(storeId: string, textos: string[]) {
 }
 
 /** Prendas de Percha que podrían ser la que pide el cliente; la reconocida (por código o foto) va primero. */
-async function buscarPrendas(modelo: string, storeId: string, d: Decision, fotos: Imagen[], textos: string[]) {
+/**
+ * Huella de una foto del cliente. Decodificar la foto entera gasta ~0,5 s de
+ * CPU (la función tiene 2 s por vuelta), así que se sube un momento al
+ * almacenamiento, se baja como miniatura de 256 px y se borra.
+ */
+async function huellaDeFotoCliente(url: string): Promise<string | null> {
+  const res = await fetch(url);
+  if (!res.ok || !(res.headers.get('content-type') ?? '').includes('jpeg')) return null;
+  const ruta = `_agente/${crypto.randomUUID()}.jpg`;
+  const fotos = supabase.storage.from('item-photos');
+  const { error } = await fotos.upload(ruta, await res.arrayBuffer(), { contentType: 'image/jpeg' });
+  if (error) return null;
+  try {
+    const { data } = await fotos.download(ruta, { transform: { width: 256, quality: 70, format: 'origin' } });
+    return data ? huellaDeJpeg(new Uint8Array(await data.arrayBuffer())) : null;
+  } finally {
+    await fotos.remove([ruta]);
+  }
+}
+
+/** Por debajo de esto, la foto del cliente y la de Percha son "parecidas". */
+const HUELLA_PARECIDA = 18;
+/** Por debajo de esto es la misma foto (reenviada/recomprimida). */
+const HUELLA_IGUAL = 6;
+
+/**
+ * Reconoce la prenda por la foto misma: los clientes reenvían la foto que
+ * publicaste en el grupo, sin marca, talla ni precio. Se compara la huella
+ * de sus fotos con la de todas las fotos de Percha y las más parecidas se
+ * confirman con Claude.
+ */
+async function prendasPorHuella(modelo: string, storeId: string, urls: string[]) {
+  const delCliente: Array<{ url: string; huella: string }> = [];
+  for (const url of urls) {
+    const h = await huellaDeFotoCliente(url).catch(() => null);
+    if (h) delCliente.push({ url, huella: h });
+  }
+  if (!delCliente.length) return [];
+
+  // Todas las huellas de la tienda (de a 1000: el tope de cada consulta).
+  const mejor = new Map<string, { dist: number; url: string }>();
+  for (let desde = 0; ; desde += 1000) {
+    const { data } = await supabase
+      .from('item_photos')
+      .select('item_id, huella')
+      .eq('store_id', storeId)
+      .not('huella', 'is', null)
+      .neq('huella', 'x')
+      .range(desde, desde + 999);
+    for (const f of data ?? []) {
+      for (const c of delCliente) {
+        const dist = distancia(c.huella, f.huella);
+        if (dist < HUELLA_PARECIDA && dist < (mejor.get(f.item_id)?.dist ?? Infinity)) {
+          mejor.set(f.item_id, { dist, url: c.url });
+        }
+      }
+    }
+    if (!data || data.length < 1000) break;
+  }
+  if (!mejor.size) return [];
+
+  const orden = [...mejor.entries()].sort((a, b) => a[1].dist - b[1].dist).slice(0, 6);
+  const { data: filas } = await supabase
+    .from('items_view')
+    .select('id, code, name, brand_name, size_label, price_cents, effective_status, photos')
+    .eq('store_id', storeId)
+    .neq('effective_status', 'hidden')
+    .in('id', orden.map(([id]) => id));
+  const porId = new Map((filas ?? []).map((f) => [f.id, f]));
+  const candidatas = await conFotos(orden.map(([id]) => porId.get(id)).filter((f) => !!f) as NonNullable<ReturnType<typeof porId.get>>[]);
+  if (!candidatas.length) return [];
+
+  const [primera] = orden;
+  const segunda = orden[1];
+  // La misma foto reenviada y sin otra igual de cerca: no hace falta preguntarle a Claude.
+  let indice = -1;
+  if (primera[1].dist <= HUELLA_IGUAL && (!segunda || segunda[1].dist - primera[1].dist >= 4)) {
+    indice = candidatas.findIndex((c) => c.id === primera[0]);
+  } else {
+    const foto = await fotoEnBase64(primera[1].url);
+    if (foto) indice = await elegirPorFoto(modelo, [foto], candidatas).catch(() => -1);
+  }
+  if (indice < 0) return candidatas.slice(0, 5);
+  const [elegida] = candidatas.splice(indice, 1);
+  return [{ ...elegida, elegida: true }, ...candidatas.slice(0, 4)];
+}
+
+async function buscarPrendas(
+  modelo: string,
+  storeId: string,
+  d: Decision,
+  fotos: Imagen[],
+  textos: string[],
+  urlsFotosCliente: string[],
+) {
   const porCodigo = await prendasPorCodigo(storeId, textos);
   if (porCodigo.length) return porCodigo;
 
+  const porHuella = await prendasPorHuella(modelo, storeId, urlsFotosCliente).catch(() => []);
+  if (porHuella.some((p) => p.elegida)) return porHuella;
+
   const candidatas = await buscarCandidatas(storeId, d);
-  if (!candidatas.length) return [];
+  if (!candidatas.length) return porHuella;
 
   let indice = -1;
   try {
