@@ -43,13 +43,29 @@ export function AgenteAjustes({
         <span>
           <span className="block font-medium">Agente encendido</span>
           <span className="text-caption text-muted">
-            Revisa el WhatsApp cada minuto y te deja respuestas para aprobar. No envía nada solo.
+            Revisa el WhatsApp cada 15 segundos y te deja respuestas para aprobar.
           </span>
         </span>
         <input
           type="checkbox"
           checked={a.enabled}
           onChange={(e) => cambiar('enabled', e.target.checked)}
+          className="size-6 accent-[--color-accent]"
+        />
+      </label>
+
+      <label className="tap flex items-center justify-between gap-4 rounded-[--radius-card] border border-line bg-surface p-4">
+        <span>
+          <span className="block font-medium">Responder solo lo simple 🤖</span>
+          <span className="text-caption text-muted">
+            Envía sin esperarte: bienvenida, datos para separar, días de envío y dudas que el cerebro
+            responde. Comprobantes, reservas, precios y reclamos siempre esperan tu OK.
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          checked={a.autoReply}
+          onChange={(e) => cambiar('autoReply', e.target.checked)}
           className="size-6 accent-[--color-accent]"
         />
       </label>

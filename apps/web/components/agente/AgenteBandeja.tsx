@@ -140,7 +140,12 @@ export function AgenteBandeja({
                   {b.contactName ?? b.phone ?? "Cliente"}
                 </span>{" "}
                 <span className="text-muted">
-                  · {b.status === "sent" ? "✅ enviado" : "🗑 descartado"}
+                  ·{" "}
+                  {b.status !== "sent"
+                    ? "🗑 descartado"
+                    : b.autoSent
+                      ? "🤖 respondió solo"
+                      : "✅ enviado"}
                 </span>
                 {b.finalReply && (
                   <p className="mt-0.5 text-muted">“{b.finalReply}”</p>

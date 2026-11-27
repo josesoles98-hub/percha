@@ -30,6 +30,7 @@ export default async function AgenteAjustesPage() {
     promoEnabled: false,
     promoDay: 10,
     promoMinSoles: 25,
+    autoReply: false,
     ...(esAvClub
       ? HIGHLEVEL_AV_CLUB
       : { hlLocationId: '', hlPipelineId: '', hlStageReservo: '', hlStagePagoSaldo: '' }),

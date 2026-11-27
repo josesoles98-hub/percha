@@ -57,6 +57,8 @@ export interface Borrador {
   status: 'pending' | 'sent' | 'discarded' | 'superseded' | 'error';
   finalReply: string | null;
   error: string | null;
+  /** Lo envió el agente solo, sin aprobación. */
+  autoSent: boolean;
 }
 
 export interface AjustesAgente {
@@ -73,6 +75,8 @@ export interface AjustesAgente {
   promoEnabled: boolean;
   promoDay: number;
   promoMinSoles: number;
+  /** Envía solo los mensajes simples; lo demás sigue esperando aprobación. */
+  autoReply: boolean;
 }
 
 export interface AjustesCatalogo {
@@ -147,6 +151,7 @@ function aBorrador(fila: Record<string, unknown>): Borrador {
     status: fila.status as Borrador['status'],
     finalReply: (fila.final_reply as string | null) ?? null,
     error: (fila.error as string | null) ?? null,
+    autoSent: Boolean(fila.auto_sent),
   };
 }
 
@@ -170,7 +175,7 @@ export async function listarRecientes(supabase: SupabaseClient, storeId: string)
     .eq('store_id', storeId)
     .in('status', ['sent', 'discarded'])
     .order('decided_at', { ascending: false })
-    .limit(15);
+    .limit(30);
   return (data ?? []).map(aBorrador);
 }
 
@@ -196,6 +201,7 @@ export async function getAjustesAgente(
     promoEnabled: data.promo_enabled ?? false,
     promoDay: data.promo_day ?? 10,
     promoMinSoles: data.promo_min_soles ?? 25,
+    autoReply: data.auto_reply ?? false,
   };
 }
 
@@ -218,6 +224,7 @@ export async function guardarAjustesAgente(
     promo_enabled: ajustes.promoEnabled,
     promo_day: Math.min(60, Math.max(1, Math.round(ajustes.promoDay) || 10)),
     promo_min_soles: Math.max(0, Math.round(ajustes.promoMinSoles) || 0),
+    auto_reply: ajustes.autoReply,
     updated_at: new Date().toISOString(),
   });
   return error ? { ok: false as const, error: error.message } : { ok: true as const };
