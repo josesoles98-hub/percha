@@ -30,7 +30,7 @@ export default async function AgentePage() {
         <div>
           <h1 className="text-title">Agente IA</h1>
           <p className="text-caption text-muted">
-            {ajustes?.enabled ? '🟢 Revisando WhatsApp cada minuto' : '⚪ Apagado'}
+            {ajustes?.enabled ? '🟢 Revisando WhatsApp cada 15 segundos' : '⚪ Apagado'}
           </p>
         </div>
         {membresia.role === 'owner' && (
