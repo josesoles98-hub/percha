@@ -251,3 +251,78 @@ export async function accionAgente(
   if (data?.error) return { ok: false, error: data.error as string };
   return { ok: true, prenda: (data?.prenda as string | null) ?? null };
 }
+
+// ── Buscador de prendas (bandeja del agente) ────────────────────────────
+
+/** Tipos que la IA le pone a cada prenda mirando su foto (items.ai_tipo). */
+export const TIPOS_PRENDA = [
+  { tipo: 'polera', etiqueta: 'Poleras', emoji: '🧥' },
+  { tipo: 'casaca', etiqueta: 'Casacas', emoji: '🧥' },
+  { tipo: 'polo', etiqueta: 'Polos', emoji: '👕' },
+  { tipo: 'camisa', etiqueta: 'Camisas', emoji: '👔' },
+  { tipo: 'short', etiqueta: 'Shorts', emoji: '🩳' },
+  { tipo: 'jean', etiqueta: 'Jeans', emoji: '👖' },
+  { tipo: 'pantalon', etiqueta: 'Pantalones', emoji: '👖' },
+  { tipo: 'vestido', etiqueta: 'Vestidos', emoji: '👗' },
+  { tipo: 'falda', etiqueta: 'Faldas', emoji: '👗' },
+  { tipo: 'zapatilla', etiqueta: 'Zapatillas', emoji: '👟' },
+  { tipo: 'accesorio', etiqueta: 'Accesorios', emoji: '🧢' },
+] as const;
+
+export interface PrendaEncontrada extends PrendaCoincidente {
+  id: string;
+  ai_desc: string | null;
+}
+
+/**
+ * Busca prendas por palabras ("casaca negra", "PR-000737", "nike") y/o tipo.
+ * Cada palabra tiene que aparecer en el código, marca, talla o en la
+ * descripción que la IA sacó de la foto.
+ */
+export async function buscarPrendasAgente(
+  supabase: SupabaseClient,
+  storeId: string,
+  { texto, tipo, soloDisponibles }: { texto: string; tipo: string | null; soloDisponibles: boolean },
+): Promise<PrendaEncontrada[]> {
+  const { data, error } = await supabase.rpc('buscar_prendas', {
+    p_store_id: storeId,
+    p_texto: texto,
+    p_tipo: tipo,
+    p_estado: soloDisponibles ? 'available' : null,
+  });
+  if (error || !data) return [];
+  const filas = data as Array<{
+    id: string;
+    code: string;
+    brand_name: string | null;
+    size_label: string | null;
+    price_cents: number;
+    effective_status: string;
+    ai_tipo: string | null;
+    ai_desc: string | null;
+    photos: Array<{ path: string; position: number }> | null;
+  }>;
+  const rutas = filas.map((f) => [...(f.photos ?? [])].sort((a, b) => a.position - b.position)[0]?.path ?? null);
+  // Miniaturas (las fotos enteras pesan ~200 KB: 60 de golpe en el celular es lento).
+  const fotos = await Promise.all(
+    rutas.map((ruta) =>
+      ruta
+        ? supabase.storage
+            .from('item-photos')
+            .createSignedUrl(ruta, 60 * 60, { transform: { width: 240, quality: 70 } })
+            .then((r) => r.data?.signedUrl ?? null)
+        : Promise.resolve(null),
+    ),
+  );
+  return filas.map((f, i) => ({
+    id: f.id,
+    code: f.code,
+    name: f.ai_tipo ? f.ai_tipo.charAt(0).toUpperCase() + f.ai_tipo.slice(1) : null,
+    brand_name: f.brand_name,
+    size_label: f.size_label,
+    price_cents: f.price_cents,
+    effective_status: f.effective_status,
+    foto: fotos[i],
+    ai_desc: f.ai_desc,
+  }));
+}

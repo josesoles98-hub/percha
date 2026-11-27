@@ -44,7 +44,7 @@ webpush.setVapidDetails(
 );
 
 /** Espera a que el cliente termine de escribir antes de redactar. */
-const SILENCIO_MS = 45_000;
+const SILENCIO_MS = 20_000;
 /** WhatsApp solo deja escribir libremente dentro de las 24 h del último mensaje del cliente. */
 const VENTANA_MS = 23 * 60 * 60 * 1000;
 /** Tope por vuelta: acota el tiempo de la función y el gasto. */
@@ -914,6 +914,23 @@ async function avisar(storeId: string, titulo: string, cuerpo: string) {
 }
 
 async function revisarTienda(ajustes: Ajustes) {
+  // El cron corre cada 15 s y una vuelta puede tardar más: con este candado
+  // dos vueltas nunca redactan el mismo chat (sería pagar dos veces a Claude).
+  const { data: candado } = await supabase
+    .from('agent_settings')
+    .update({ running_until: new Date(Date.now() + 145_000).toISOString() })
+    .eq('store_id', ajustes.store_id)
+    .or(`running_until.is.null,running_until.lt.${new Date().toISOString()}`)
+    .select('store_id');
+  if (!candado?.length) return { tienda: ajustes.store_id, ocupado: true };
+  try {
+    return await revisarTiendaConCandado(ajustes);
+  } finally {
+    await supabase.from('agent_settings').update({ running_until: null }).eq('store_id', ajustes.store_id);
+  }
+}
+
+async function revisarTiendaConCandado(ajustes: Ajustes) {
   const chats = await chatsEsperandoRespuesta(ajustes.hl_location_id, CHATS_A_MIRAR);
   const ahora = Date.now();
   const resultados: Array<Record<string, unknown>> = [];

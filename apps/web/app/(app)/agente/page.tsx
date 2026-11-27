@@ -56,7 +56,7 @@ export default async function AgentePage() {
         </p>
       )}
 
-      <AgenteBandeja pendientes={pendientes} recientes={recientes} />
+      <AgenteBandeja storeId={membresia.storeId} pendientes={pendientes} recientes={recientes} />
     </main>
   );
 }

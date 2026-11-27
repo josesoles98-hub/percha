@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-import { accionAgente, type Borrador } from "@/lib/data/agente";
+import {
+  accionAgente,
+  type Borrador,
+  type PrendaCoincidente,
+} from "@/lib/data/agente";
+import { BuscadorPrendas } from "./BuscadorPrendas";
 import { createClient } from "@/lib/supabase/client";
 
 const ETIQUETA_ACCION: Record<Borrador["suggestedAction"], string> = {
@@ -22,9 +27,11 @@ function haceCuanto(fecha: string) {
 }
 
 export function AgenteBandeja({
+  storeId,
   pendientes,
   recientes,
 }: {
+  storeId: string;
   pendientes: Borrador[];
   recientes: Borrador[];
 }) {
@@ -62,6 +69,27 @@ export function AgenteBandeja({
     };
   }, [refrescar]);
 
+  // Al instante: cada borrador nuevo o cambiado avisa por Realtime.
+  useEffect(() => {
+    const supabase = createClient();
+    const canal = supabase
+      .channel(`agente-${storeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "agent_drafts",
+          filter: `store_id=eq.${storeId}`,
+        },
+        () => refrescar(),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(canal);
+    };
+  }, [storeId, refrescar]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -95,7 +123,9 @@ export function AgenteBandeja({
           </p>
         </section>
       ) : (
-        pendientes.map((b) => <Tarjeta key={b.id} borrador={b} />)
+        pendientes.map((b) => (
+          <Tarjeta key={b.id} borrador={b} storeId={storeId} />
+        ))
       )}
 
       {recientes.length > 0 && (
@@ -124,8 +154,20 @@ export function AgenteBandeja({
   );
 }
 
-function Tarjeta({ borrador: b }: { borrador: Borrador }) {
+function Tarjeta({
+  borrador: b,
+  storeId,
+}: {
+  borrador: Borrador;
+  storeId: string;
+}) {
   const router = useRouter();
+  const [buscando, setBuscando] = useState(false);
+  // Prenda elegida a mano con el buscador (va arriba de las que propuso el agente).
+  const [aMano, setAMano] = useState<PrendaCoincidente | null>(null);
+  const prendas = aMano
+    ? [aMano, ...b.itemMatches.filter((p) => p.id !== aMano.id)]
+    : b.itemMatches;
   const [texto, setTexto] = useState(b.proposedReply ?? "");
   const [prenda, setPrenda] = useState(
     [
@@ -268,15 +310,17 @@ function Tarjeta({ borrador: b }: { borrador: Borrador }) {
             </p>
           )}
 
-          {b.itemMatches.length > 0 && (
+          {prendas.length > 0 && (
             <div className="mt-3 text-caption">
               <p className="mb-1.5 font-medium">
-                {b.itemMatches[0]?.elegida
-                  ? "📸 Reconocí la prenda de la foto:"
-                  : "Posibles prendas en Percha:"}
+                {aMano
+                  ? "🔍 Prenda que elegiste:"
+                  : prendas[0]?.elegida
+                    ? "📸 Reconocí la prenda de la foto:"
+                    : "Posibles prendas en Percha:"}
               </p>
               <ul className="space-y-1.5">
-                {b.itemMatches.map((p) => {
+                {prendas.map((p) => {
                   const marcada =
                     marcaPercha && p.id != null && itemId === p.id;
                   return (
@@ -342,6 +386,30 @@ function Tarjeta({ borrador: b }: { borrador: Borrador }) {
             </div>
           )}
 
+          {buscando ? (
+            <BuscadorPrendas
+              storeId={storeId}
+              onCerrar={() => setBuscando(false)}
+              onElegir={(p) => {
+                setAMano(p);
+                setBuscando(false);
+                if (marcaPercha) {
+                  setItemId(p.id);
+                  if (!precioCaptura && p.price_cents)
+                    setPrecio(String(p.price_cents / 100));
+                }
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setBuscando(true)}
+              className="tap mt-2 w-full rounded-[--radius-control] border border-dashed border-line px-3 py-2 text-label text-muted"
+            >
+              🔍 {prendas.length ? "¿No es ninguna? Buscar la prenda" : "Buscar la prenda en Percha"}
+            </button>
+          )}
+
           <label className="mt-3 block">
             <span className="mb-1 block text-caption text-muted">
               Respuesta propuesta (puedes corregirla)
@@ -400,7 +468,7 @@ function Tarjeta({ borrador: b }: { borrador: Borrador }) {
               {marcaPercha && (
                 <p className="mt-2 text-caption">
                   {itemId
-                    ? `También se marcará ${b.itemMatches.find((p) => p.id === itemId)?.code ?? "la prenda"} como ${b.suggestedAction === "reservar" ? "reservada" : "vendida"} en Percha.`
+                    ? `También se marcará ${prendas.find((p) => p.id === itemId)?.code ?? "la prenda"} como ${b.suggestedAction === "reservar" ? "reservada" : "vendida"} en Percha.`
                     : b.suggestedAction === "pago_saldo"
                       ? "Si este cliente tiene una sola prenda reservada en Percha, se marcará como vendida."
                       : "Toca una prenda de arriba para marcarla también como reservada en Percha."}
