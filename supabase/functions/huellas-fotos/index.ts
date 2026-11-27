@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
   const lote = Math.min(LOTE, Math.max(1, Number(cuerpo?.lote) || LOTE));
   const { data: fotos, error } = await supabase
     .from('item_photos')
-    .select('id, storage_path')
-    .is('huella', null)
+    .select('id, storage_path, huella, mini_path')
+    .or('huella.is.null,mini_path.is.null')
     .eq('status', 'ready')
     .order('created_at', { ascending: false })
     .limit(lote);
@@ -73,8 +73,17 @@ Deno.serve(async (req) => {
           continue;
         }
         // "x" = se bajó pero no se pudo leer: así no se reintenta para siempre.
-        const huella = huellaDeJpeg(bytes) || 'x';
-        await supabase.from('item_photos').update({ huella }).eq('id', f.id);
+        const huella = f.huella ?? (huellaDeJpeg(bytes) || 'x');
+        // La miniatura también se guarda: el buscador del agente la muestra (~15 KB vs ~250 KB).
+        let mini = f.mini_path;
+        if (!mini) {
+          const ruta = f.storage_path.replace(/(\.[a-z0-9]+)?$/i, ".mini.jpg");
+          const { error: e } = await supabase.storage
+            .from(BUCKET)
+            .upload(ruta, bytes, { contentType: 'image/jpeg', upsert: true });
+          mini = e ? null : ruta;
+        }
+        await supabase.from('item_photos').update({ huella, mini_path: mini }).eq('id', f.id);
         if (huella === 'x') fallidas++;
         else listas++;
       }
@@ -84,7 +93,7 @@ Deno.serve(async (req) => {
   const { count } = await supabase
     .from('item_photos')
     .select('id', { count: 'exact', head: true })
-    .is('huella', null)
+    .or('huella.is.null,mini_path.is.null')
     .eq('status', 'ready');
   return Response.json({ listas, fallidas, sinMiniatura, faltan: count ?? null });
 });

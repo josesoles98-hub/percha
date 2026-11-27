@@ -300,11 +300,11 @@ export async function buscarPrendasAgente(
     effective_status: string;
     ai_tipo: string | null;
     ai_desc: string | null;
-    photos: Array<{ path: string; position: number }> | null;
+    /** Miniatura de la primera foto (~15 KB), o la foto entera si aún no tiene. */
+    foto: string | null;
   }>;
-  const rutas = filas.map((f) => [...(f.photos ?? [])].sort((a, b) => a.position - b.position)[0]?.path ?? null);
-  // Todas las firmas en UNA sola consulta (firmar de a una tardaba ~12 s);
-  // la grilla carga las fotos de a poco (loading="lazy").
+  const rutas = filas.map((f) => f.foto);
+  // Todas las firmas en UNA sola consulta (firmar de a una tardaba ~12 s).
   const validas = rutas.filter((r): r is string => !!r);
   const { data: firmadas } = validas.length
     ? await supabase.storage.from('item-photos').createSignedUrls(validas, 60 * 60)
