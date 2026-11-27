@@ -943,6 +943,7 @@ async function revisarTiendaConCandado(ajustes: Ajustes) {
     .select('hl_conversation_id, last_inbound_at')
     .eq('store_id', ajustes.store_id)
     .in('hl_conversation_id', chats.map((c) => c.id))
+    .neq('status', 'superseded')
     .gte('last_inbound_at', new Date(ahora - 2 * VENTANA_MS).toISOString());
   const ultimoRedactado = new Map<string, number>();
   for (const h of hechos ?? []) {
