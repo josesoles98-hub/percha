@@ -163,11 +163,12 @@ function Tarjeta({
 }) {
   const router = useRouter();
   const [buscando, setBuscando] = useState(false);
-  // Prenda elegida a mano con el buscador (va arriba de las que propuso el agente).
-  const [aMano, setAMano] = useState<PrendaCoincidente | null>(null);
-  const prendas = aMano
-    ? [aMano, ...b.itemMatches.filter((p) => p.id !== aMano.id)]
-    : b.itemMatches;
+  // Prendas elegidas a mano con el buscador (van arriba de las que propuso el agente).
+  const [aMano, setAMano] = useState<PrendaCoincidente[]>([]);
+  const prendas = [
+    ...aMano,
+    ...b.itemMatches.filter((p) => !aMano.some((m) => m.id === p.id)),
+  ];
   const [texto, setTexto] = useState(b.proposedReply ?? "");
   const [prenda, setPrenda] = useState(
     [
@@ -179,9 +180,11 @@ function Tarjeta({
       .join(" "),
   );
   const [saldo, setSaldo] = useState(String(b.actionData.saldo_soles || ""));
-  // Prenda de Percha que se marcará reservada/vendida al aprobar.
-  const [itemId, setItemId] = useState<string | null>(
-    b.itemMatches.find((p) => p.elegida)?.id ?? null,
+  // Prendas de Percha que se marcarán reservadas/vendidas al aprobar
+  // (un cliente puede separar o pagar varias).
+  const reconocida = b.itemMatches.find((p) => p.elegida && p.id);
+  const [seleccion, setSeleccion] = useState<string[]>(
+    reconocida?.id ? [reconocida.id] : [],
   );
   // Reservar / vendida: lo sugiere el agente, o lo elige la dueña al
   // confirmar la prenda ("✅ Es esta") aunque el agente no lo haya detectado.
@@ -191,13 +194,42 @@ function Tarjeta({
   const accion: Borrador["suggestedAction"] =
     accionElegida ?? b.suggestedAction;
   const precioCaptura = b.actionData.precio_soles || 0;
-  // Precio de la venta: el de la captura manda (es la oferta del día); si
-  // no se vio, el que tiene la prenda en Percha.
-  const [precio, setPrecio] = useState(() => {
-    if (precioCaptura) return String(precioCaptura);
-    const p = b.itemMatches.find((x) => x.elegida);
-    return p ? String(p.price_cents / 100) : "";
-  });
+  // Precio de cada prenda elegida: el de la captura manda (es la oferta del
+  // día); si no se vio, el que tiene la prenda en Percha.
+  const [precios, setPrecios] = useState<Record<string, string>>(() =>
+    reconocida?.id
+      ? {
+          [reconocida.id]: precioCaptura
+            ? String(precioCaptura)
+            : reconocida.price_cents
+              ? String(reconocida.price_cents / 100)
+              : "",
+        }
+      : {},
+  );
+  const codigoDe = (id: string) =>
+    prendas.find((p) => p.id === id)?.code ?? "la prenda";
+  const codigos = seleccion.map(codigoDe).join(", ");
+
+  function alternar(p: PrendaCoincidente) {
+    if (!p.id) return;
+    const id = p.id;
+    if (seleccion.includes(id)) {
+      setSeleccion(seleccion.filter((x) => x !== id));
+      return;
+    }
+    setSeleccion([...seleccion, id]);
+    setPrecios((actuales) => ({
+      ...actuales,
+      [id]:
+        actuales[id] ??
+        (seleccion.length === 0 && precioCaptura
+          ? String(precioCaptura)
+          : p.price_cents
+            ? String(p.price_cents / 100)
+            : ""),
+    }));
+  }
   const [ocupado, setOcupado] = useState<
     null | "enviar" | "descartar" | "accion"
   >(null);
@@ -215,9 +247,18 @@ function Tarjeta({
       texto: tipo === "enviar" ? texto : undefined,
       prenda: tipo === "accion" ? prenda : undefined,
       saldo: tipo === "accion" && saldo ? Number(saldo) : undefined,
-      itemId: tipo === "accion" ? itemId : undefined,
+      itemId: tipo === "accion" ? (seleccion[0] ?? null) : undefined,
       precio:
-        tipo === "accion" && itemId && precio ? Number(precio) : undefined,
+        tipo === "accion" && seleccion[0] && precios[seleccion[0]]
+          ? Number(precios[seleccion[0]])
+          : undefined,
+      prendas:
+        tipo === "accion" && seleccion.length
+          ? seleccion.map((id) => ({
+              itemId: id,
+              precio: Number(precios[id]) || undefined,
+            }))
+          : undefined,
       accion: tipo === "accion" && accionElegida ? accionElegida : undefined,
     });
     setOcupado(null);
@@ -331,16 +372,14 @@ function Tarjeta({
               </p>
               <ul className="space-y-1.5">
                 {prendas.map((p) => {
-                  const marcada = p.id != null && itemId === p.id;
+                  const marcada = p.id != null && seleccion.includes(p.id);
                   return (
                     <li key={p.code}>
                       <button
                         type="button"
                         disabled={!puedeElegir || !p.id}
                         onClick={() => {
-                          setItemId(marcada ? null : (p.id ?? null));
-                          if (!marcada && !precioCaptura)
-                            setPrecio(String(p.price_cents / 100));
+                          alternar(p);
                         }}
                         className={`flex w-full items-center gap-3 rounded-[--radius-control] border p-1.5 text-left ${
                           marcada
@@ -401,11 +440,11 @@ function Tarjeta({
             </div>
           )}
 
-          {itemId && !marcaPercha && !hecha && (
+          {seleccion.length > 0 && !marcaPercha && !hecha && (
             <div className="mt-3 rounded-[--radius-control] border border-accent/40 bg-accent-soft p-3">
               <p className="text-label font-medium">
                 ¿Qué pasa con{" "}
-                {prendas.find((p) => p.id === itemId)?.code ?? "la prenda"}?
+                {codigos}?
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button
@@ -431,11 +470,9 @@ function Tarjeta({
               storeId={storeId}
               onCerrar={() => setBuscando(false)}
               onElegir={(p) => {
-                setAMano(p);
+                setAMano((lista) => [p, ...lista.filter((x) => x.id !== p.id)]);
                 setBuscando(false);
-                setItemId(p.id);
-                if (!precioCaptura && p.price_cents)
-                  setPrecio(String(p.price_cents / 100));
+                if (!seleccion.includes(p.id)) alternar(p);
               }}
             />
           ) : (
@@ -496,31 +533,39 @@ function Tarjeta({
                   />
                 </div>
               )}
-              {marcaPercha && itemId && (
-                <label className="mt-2 flex items-center gap-2 text-caption">
-                  <span>
-                    {accion === "reservar"
-                      ? "Precio acordado"
-                      : "Precio de venta"}{" "}
-                    S/
-                  </span>
-                  <input
-                    value={precio}
-                    onChange={(e) =>
-                      setPrecio(e.target.value.replace(/[^\d.]/g, ""))
-                    }
-                    inputMode="decimal"
-                    className="w-20 rounded-[--radius-control] border border-line bg-bg px-2 py-1.5 text-label outline-none focus:border-accent"
-                  />
-                </label>
+              {marcaPercha && seleccion.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  <p className="text-caption">
+                    {accion === "reservar" ? "Precio acordado" : "Precio de venta"}
+                    {seleccion.length > 1 ? " de cada prenda" : ""}:
+                  </p>
+                  {seleccion.map((id) => (
+                    <label key={id} className="flex items-center gap-2 text-caption">
+                      <span className="min-w-24 font-medium">{codigoDe(id)}</span>
+                      <span>S/</span>
+                      <input
+                        value={precios[id] ?? ""}
+                        onChange={(e) =>
+                          setPrecios((actuales) => ({
+                            ...actuales,
+                            [id]: e.target.value.replace(/[^\d.]/g, ""),
+                          }))
+                        }
+                        inputMode="decimal"
+                        placeholder="0"
+                        className="w-20 rounded-[--radius-control] border border-line bg-bg px-2 py-1.5 text-label outline-none focus:border-accent"
+                      />
+                    </label>
+                  ))}
+                </div>
               )}
               {marcaPercha && (
                 <p className="mt-2 text-caption">
-                  {itemId
-                    ? `También se marcará ${prendas.find((p) => p.id === itemId)?.code ?? "la prenda"} como ${accion === "reservar" ? "reservada" : "vendida"} en Percha.`
+                  {seleccion.length
+                    ? `También se ${seleccion.length > 1 ? "marcarán" : "marcará"} ${codigos} como ${accion === "reservar" ? (seleccion.length > 1 ? "reservadas" : "reservada") : seleccion.length > 1 ? "vendidas" : "vendida"} en Percha.`
                     : accion === "pago_saldo"
                       ? "Si este cliente tiene una sola prenda reservada en Percha, se marcará como vendida."
-                      : "Toca una prenda de arriba para marcarla también como reservada en Percha."}
+                      : "Toca una o varias prendas de arriba para marcarlas también como reservadas en Percha."}
                 </p>
               )}
               <p className="mt-2 text-caption text-muted">

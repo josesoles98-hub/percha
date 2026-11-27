@@ -41,6 +41,7 @@ export default async function MasPage() {
         {membresia.role === 'owner' && <Fila href="/ganancias" icono="💰" etiqueta="Ganancias" />}
         <Fila href="/clientes" icono="👥" etiqueta="Clientes" />
         <Fila href="/carga-rapida" icono="📦" etiqueta="Carga rápida (varias prendas)" />
+        <Fila href="/pendientes" icono="🏷️" etiqueta="Poner precio, talla y marca" />
         <Fila href="/publicar" icono="📣" etiqueta="Publicar" />
         <Fila href="/ajustes" icono="⚙" etiqueta="Ajustes" />
       </div>

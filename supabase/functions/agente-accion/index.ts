@@ -57,6 +57,8 @@ interface Peticion {
    * (p. ej. reconoció la prenda pero el cliente aún no mandó comprobante).
    */
   accion?: 'reservar' | 'pago_saldo';
+  /** Varias prendas a la vez (un cliente que separa o paga 2 o más). Manda sobre itemId/precio. */
+  prendas?: Array<{ itemId: string; precio?: number }>;
 }
 
 function ultimos9(telefono: string | null | undefined) {
@@ -300,14 +302,30 @@ Deno.serve(async (req) => {
 
       let codigo: string | null = null;
       if (accion === 'reservar' || accion === 'pago_saldo') {
-        const precio = peticion.precio ?? datos.precio_soles ?? 0;
-        codigo = await marcarEnPercha(
-          draft.store_id,
-          accion,
-          peticion.itemId,
-          { nombre, telefono: draft.phone },
-          precio > 0 ? Math.round(precio * 100) : null,
-        );
+        const cliente = { nombre, telefono: draft.phone };
+        if (peticion.prendas?.length) {
+          const codigos: string[] = [];
+          for (const p of peticion.prendas.slice(0, 10)) {
+            const c = await marcarEnPercha(
+              draft.store_id,
+              accion,
+              p.itemId,
+              cliente,
+              p.precio && p.precio > 0 ? Math.round(p.precio * 100) : null,
+            );
+            if (c) codigos.push(c);
+          }
+          codigo = codigos.join(', ') || null;
+        } else {
+          const precio = peticion.precio ?? datos.precio_soles ?? 0;
+          codigo = await marcarEnPercha(
+            draft.store_id,
+            accion,
+            peticion.itemId,
+            cliente,
+            precio > 0 ? Math.round(precio * 100) : null,
+          );
+        }
       }
 
       await admin.from('agent_drafts').update({ action_status: 'done' }).eq('id', draft.id);
