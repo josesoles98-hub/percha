@@ -65,7 +65,16 @@ Deno.serve(async (req) => {
     .limit(MAX_PRENDAS);
   if (error) return json({ error: 'No se pudo cargar el catálogo' }, 500);
 
-  const prendas = (filas ?? []).map((f) => ({
+  // El catálogo es solo ropa: fuera las gorras (lo que la IA vio en la foto).
+  const { data: gorras } = await supabase
+    .from('items')
+    .select('code')
+    .eq('store_id', tienda.id)
+    .eq('status', 'available')
+    .or('ai_desc.ilike.%gorra%,ai_desc.ilike.%jockey%,ai_desc.ilike.cap %,ai_desc.ilike.% cap %');
+  const sinGorras = new Set((gorras ?? []).map((g) => g.code));
+
+  const prendas = (filas ?? []).filter((f) => !sinGorras.has(f.code)).map((f) => ({
     ...f,
     rutas: ((f.photos ?? []) as Foto[])
       .filter((p) => p.status !== 'failed')
