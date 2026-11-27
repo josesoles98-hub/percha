@@ -68,6 +68,8 @@ interface Decision {
   prenda_tipo: string;
   precio_soles: number;
   saldo_soles: number;
+  intencion: 'disponibilidad' | 'comprobante' | 'otro';
+  monto_comprobante: number;
 }
 
 const ESQUEMA = {
@@ -83,6 +85,8 @@ const ESQUEMA = {
     'prenda_tipo',
     'precio_soles',
     'saldo_soles',
+    'intencion',
+    'monto_comprobante',
   ],
   properties: {
     respuesta: {
@@ -111,6 +115,16 @@ const ESQUEMA = {
     prenda_tipo: { type: 'string', description: 'Tipo de prenda (polo, casaca, jean...), si se sabe. Vacío si no.' },
     precio_soles: { type: 'number', description: 'Precio total de la prenda en soles si se ve en la captura. 0 si no se sabe.' },
     saldo_soles: { type: 'number', description: 'Saldo que le faltaría pagar (precio menos 10 de la reserva). 0 si no aplica.' },
+    intencion: {
+      type: 'string',
+      enum: ['disponibilidad', 'comprobante', 'otro'],
+      description:
+        'disponibilidad: el último mensaje pregunta si una prenda está disponible o dice que la quiere/reservar/separar SIN haber pagado todavía (suele venir con la captura de la prenda). comprobante: acaba de mandar la captura de un pago (Yape/Plin/transferencia). otro: cualquier otra cosa.',
+    },
+    monto_comprobante: {
+      type: 'number',
+      description: 'Si mandó un comprobante de pago, el monto pagado en soles que se lee en la captura. 0 si no hay comprobante o no se lee.',
+    },
   },
 } as const;
 
@@ -295,6 +309,191 @@ async function datosDePedidos(storeId: string, telefono: string | null, textos: 
         .join('\n');
     })
     .join('\n');
+}
+
+// ── Plantillas de venta (las mismas frases que usa la tienda) ──────────
+//
+// En los chats que cierran venta siempre pasa lo mismo: captura + "¿está?"
+// → "sí, ¿reservas o pagas completo?" → números de pago → comprobante →
+// confirmación. Para ahorrar una vuelta, cuando preguntan por una prenda el
+// agente manda TODO en un mensaje (disponible + separar o pagar + números),
+// y el cliente elige pagando. Al llegar el comprobante, el monto dice si fue
+// reserva o pago completo, y el saldo y la fecha se calculan solos.
+// La dueña igual aprueba cada mensaje (y confirma que la prenda sigue).
+
+const MEDIOS_PAGO = 'Yape: Jose Soles 977815875\nPlin: Alexandra Aviles 938268470';
+const DIAS_RESERVA = 5;
+const RESERVA = 10;
+const RESERVA_ZAPATILLAS = 30;
+
+function soles(n: number) {
+  return `S/${Number.isInteger(n) ? n : n.toFixed(2)}`;
+}
+
+function fechaLimaEnDias(dias: number) {
+  return new Date(Date.now() + dias * 86_400_000).toLocaleDateString('es-PE', {
+    timeZone: 'America/Lima',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+function esZapatilla(texto: string) {
+  return /zapatill|sneaker|tenis|calzado/i.test(texto);
+}
+
+interface PrendaDelChat {
+  descripcion: string;
+  precio: number; // soles; 0 = no se sabe
+  itemId: string | null;
+  zapatilla: boolean;
+}
+
+/** Lo que se sabe de la prenda: lo de este mensaje, o lo que se guardó en un borrador anterior del mismo chat. */
+async function prendaDelChat(
+  storeId: string,
+  conversacion: string,
+  d: Decision,
+  reconocida: Candidata | undefined,
+): Promise<PrendaDelChat> {
+  const desc = (tipo: string, marca: string, talla: string) =>
+    [tipo, marca, talla ? `talla ${talla}` : ''].filter(Boolean).join(' ').trim();
+
+  let descripcion = desc(d.prenda_tipo, d.prenda_marca || reconocida?.brand_name || '', d.prenda_talla || reconocida?.size_label || '');
+  let precio = d.precio_soles > 0 ? d.precio_soles : reconocida ? reconocida.price_cents / 100 : 0;
+  let itemId = reconocida?.id ?? null;
+
+  if (!precio || !itemId) {
+    // "Guardar el precio desde el principio": el borrador de cuando preguntó
+    // por la prenda ya tiene el precio de la captura y la prenda reconocida.
+    const { data: previos } = await supabase
+      .from('agent_drafts')
+      .select('action_data, created_at')
+      .eq('store_id', storeId)
+      .eq('hl_conversation_id', conversacion)
+      .gte('created_at', new Date(Date.now() - 7 * 86_400_000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10);
+    for (const p of previos ?? []) {
+      const a = (p.action_data ?? {}) as Record<string, unknown>;
+      if (!precio && Number(a.precio_soles) > 0) precio = Number(a.precio_soles);
+      if (!itemId && typeof a.item_id === 'string') itemId = a.item_id;
+      if (!descripcion) descripcion = desc(String(a.tipo ?? ''), String(a.marca ?? ''), String(a.talla ?? ''));
+      if (precio && itemId) break;
+    }
+  }
+  return { descripcion, precio, itemId, zapatilla: esZapatilla(`${descripcion} ${d.prenda_tipo}`) };
+}
+
+interface Propuesta {
+  respuesta: string;
+  necesitaHumano: boolean;
+  nota: string;
+  accion: Decision['accion'];
+  precio: number;
+  saldo: number;
+  itemId: string | null;
+}
+
+function saludo() {
+  const h = Number(new Date().toLocaleString('en-US', { timeZone: 'America/Lima', hour: '2-digit', hour12: false }));
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+/** Ajusta la respuesta del modelo con las plantillas de venta cuando corresponde. */
+function aplicarPlantillas(d: Decision, prenda: PrendaDelChat, reconocida: Candidata | undefined): Propuesta {
+  const base: Propuesta = {
+    respuesta: d.respuesta.trim(),
+    necesitaHumano: d.necesita_humano,
+    nota: d.nota_para_la_duena.trim(),
+    accion: d.accion,
+    precio: prenda.precio,
+    saldo: d.saldo_soles,
+    itemId: prenda.itemId,
+  };
+  const reserva = prenda.zapatilla ? RESERVA_ZAPATILLAS : RESERVA;
+
+  // 1) Pregunta por una prenda → un solo mensaje con todo.
+  if (d.intencion === 'disponibilidad') {
+    const vendida = reconocida && reconocida.effective_status !== 'available';
+    const queEs = [prenda.descripcion, prenda.precio ? `a ${soles(prenda.precio)}` : ''].filter(Boolean).join(' ');
+    return {
+      ...base,
+      respuesta: [
+        `¡Hola! ${saludo()} ☺️ Sí, está disponible${queEs ? ` (${queEs})` : ''}.`,
+        `Puedes *separarla con ${soles(reserva)}*${prenda.precio ? ` o *llevártela pagando ${soles(prenda.precio)}*` : ' o pagarla completa'} 👇`,
+        '',
+        MEDIOS_PAGO,
+        '',
+        'Envíanos la captura del comprobante y te la confirmamos ✨',
+      ].join('\n'),
+      necesitaHumano: true,
+      nota: [
+        vendida
+          ? `⚠️ En Percha ${reconocida!.code} figura como ${reconocida!.effective_status === 'sold' ? 'VENDIDA' : 'RESERVADA'}: si ya no está, cambia el mensaje por "Agotado 😥".`
+          : 'Confirma que la prenda sigue disponible antes de enviar.',
+        prenda.precio ? '' : 'No se vio el precio: agrégalo o pide la captura con el precio.',
+      ]
+        .filter(Boolean)
+        .join(' '),
+      accion: 'none',
+    };
+  }
+
+  // 2) Comprobante → el monto dice si es reserva o pago completo.
+  if (d.intencion === 'comprobante' && d.monto_comprobante > 0 && d.accion !== 'pago_saldo') {
+    const monto = d.monto_comprobante;
+    const esReserva = prenda.precio ? monto < prenda.precio : monto <= RESERVA_ZAPATILLAS;
+    if (esReserva) {
+      const saldo = prenda.precio ? Math.max(0, prenda.precio - monto) : 0;
+      return {
+        ...base,
+        respuesta: [
+          '¡Reserva confirmada! ✅',
+          saldo
+            ? `Tu saldo pendiente es *${soles(saldo)}* y tienes hasta el *${fechaLimaEnDias(DIAS_RESERVA)}* para completarlo.`
+            : `Tienes ${DIAS_RESERVA} días para completar el pago.`,
+          prenda.precio
+            ? 'Envíanos tu nombre completo para registrar tu reserva ✨'
+            : 'Envíanos tu nombre completo y la captura de la prenda donde se vea el precio, para registrarla correctamente ✨',
+        ].join('\n'),
+        necesitaHumano: true,
+        nota: `Comprobante de ${soles(monto)} → reserva${prenda.descripcion ? ` de ${prenda.descripcion}` : ''}${saldo ? `, saldo ${soles(saldo)}` : ''}. Revisa el pago en tu Yape/Plin antes de enviar y aprobar.`,
+        accion: 'reservar',
+        saldo,
+      };
+    }
+    return {
+      ...base,
+      respuesta: [
+        '¡Gracias por tu pago! ✅ Tu compra está confirmada.',
+        'Envíanos tu nombre completo para registrar tu pedido correctamente.',
+        '¿Deseas programar tu envío o seguir acumulando prendas? Puedes acumularlas por un máximo de 2 semanas 📦',
+      ].join('\n'),
+      necesitaHumano: true,
+      nota: `Comprobante de ${soles(monto)}${prenda.precio ? ` (precio ${soles(prenda.precio)})` : ''} → pago completo. Revisa el pago en tu Yape/Plin antes de enviar.`,
+      accion: 'pago_saldo',
+      saldo: 0,
+    };
+  }
+
+  return base;
+}
+
+async function prepararBorrador(ajustes: Ajustes, conv: Conversacion, mensajes: Mensaje[]) {
+  const { decision, imagenes, error } = await redactar(ajustes, conv, mensajes);
+  if (!decision) return { error: error ?? 'Sin respuesta', decision: null } as const;
+
+  const textosCliente = mensajes
+    .slice(-6)
+    .filter((m) => m.direction === 'inbound')
+    .map((m) => m.body ?? '');
+  const prendas = await buscarPrendas(ajustes.model, ajustes.store_id, decision, imagenes, textosCliente);
+  const reconocida = prendas.find((p) => p.elegida);
+  const prenda = await prendaDelChat(ajustes.store_id, conv.id, decision, reconocida);
+  const propuesta = aplicarPlantillas(decision, prenda, reconocida);
+  return { error: null, decision, prendas, reconocida, propuesta } as const;
 }
 
 // ── El corazón: redactar un borrador para un chat ──────────────────────
@@ -658,32 +857,28 @@ async function revisarTienda(ajustes: Ajustes) {
     };
 
     try {
-      const { decision, imagenes, error } = await redactar(ajustes, conv, mensajes);
-      if (!decision) {
-        await supabase.from('agent_drafts').insert({ ...base, status: 'error', error });
-        resultados.push({ chat: conv.id, error });
+      const r = await prepararBorrador(ajustes, conv, mensajes);
+      if (!r.decision) {
+        await supabase.from('agent_drafts').insert({ ...base, status: 'error', error: r.error });
+        resultados.push({ chat: conv.id, error: r.error });
         continue;
       }
-
-      const textosCliente = mensajes
-        .slice(-6)
-        .filter((m) => m.direction === 'inbound')
-        .map((m) => m.body ?? '');
-      const prendas = await buscarPrendas(ajustes.model, ajustes.store_id, decision, imagenes, textosCliente);
-      const reconocida = prendas.find((p) => p.elegida);
+      const { decision, prendas, reconocida, propuesta: p } = r;
       await supabase.from('agent_drafts').insert({
         ...base,
-        proposed_reply: decision.respuesta.trim() || null,
-        needs_human: decision.necesita_humano,
-        human_note: decision.nota_para_la_duena.trim() || null,
-        suggested_action: decision.accion,
+        proposed_reply: p.respuesta || null,
+        needs_human: p.necesitaHumano,
+        human_note: p.nota || null,
+        suggested_action: p.accion,
         action_data: {
           marca: decision.prenda_marca,
           talla: decision.prenda_talla,
           tipo: decision.prenda_tipo,
-          precio_soles: decision.precio_soles,
-          saldo_soles: decision.saldo_soles,
-          item_id: reconocida?.id ?? null,
+          precio_soles: p.precio,
+          saldo_soles: p.saldo,
+          monto_comprobante: decision.monto_comprobante,
+          intencion: decision.intencion,
+          item_id: p.itemId,
         },
         item_matches: prendas,
       });
@@ -691,8 +886,8 @@ async function revisarTienda(ajustes: Ajustes) {
       const nombre = base.contact_name ?? 'Cliente';
       await avisar(
         ajustes.store_id,
-        decision.necesita_humano ? `👀 ${nombre} te necesita` : `💬 Respuesta lista para ${nombre}`,
-        [reconocida ? `Prenda ${reconocida.code}` : '', decision.nota_para_la_duena || decision.respuesta || 'Revisa el chat']
+        p.necesitaHumano ? `👀 ${nombre} te necesita` : `💬 Respuesta lista para ${nombre}`,
+        [reconocida ? `Prenda ${reconocida.code}` : '', p.nota || p.respuesta || 'Revisa el chat']
           .filter(Boolean)
           .join(' · '),
       );
@@ -746,8 +941,11 @@ Deno.serve(async (req) => {
     const { data: convs } = await supabase.from('agent_drafts').select('phone, contact_name').eq('hl_conversation_id', cuerpo.prueba).limit(1);
     const conv = { id: cuerpo.prueba, contactId: '', phone: convs?.[0]?.phone ?? null, fullName: convs?.[0]?.contact_name ?? null, lastMessageDate: Date.now() } as Conversacion;
     const datos = await datosDePedidos(t.store_id, conv.phone ?? null, mensajes.filter((m) => m.direction === 'inbound').map((m) => m.body ?? ''));
-    const { decision, error } = await redactar(t, conv, mensajes);
-    return new Response(JSON.stringify({ datos, decision, error }), { headers: { 'Content-Type': 'application/json' } });
+    const r = await prepararBorrador(t, conv, mensajes);
+    return new Response(
+      JSON.stringify({ datos, decision: r.decision, propuesta: r.decision ? r.propuesta : null, error: r.error }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
   }
 
   const resultados = [];
