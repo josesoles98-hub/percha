@@ -515,7 +515,47 @@ function aplicarPlantillas(d: Decision, prenda: PrendaDelChat, reconocida: Candi
   return base;
 }
 
+/** Link al grupo VIP (el mismo que usaba la bienvenida de HighLevel). */
+const LINK_GRUPO_VIP = 'https://services.msgsndr.com/urls/l/cN8FlCZFOb';
+
+/** Primer mensaje de alguien que llega por un anuncio de Meta y la tienda aún no le habló. */
+function esLeadDeAnuncioNuevo(mensajes: Mensaje[]) {
+  if (mensajes.some((m) => m.direction === 'outbound')) return false;
+  return mensajes.some((m) => m.direction === 'inbound' && /\*Source URL:\*|\*Headline:\*/i.test(m.body ?? ''));
+}
+
+function bienvenidaDeAnuncio(nombre: string | null | undefined): Propuesta {
+  const primerNombre = (nombre ?? '').trim().split(/\s+/)[0] ?? '';
+  return {
+    respuesta: [
+      `¡Hola${primerNombre ? ` ${primerNombre}` : ''}! 👋 Gracias por escribir a American Vintage Club 🇺🇸 Vendemos ropa americana vintage original. Publicamos las prendas primero en nuestro grupo VIP: ${LINK_GRUPO_VIP}`,
+      '',
+      '¿Cómo comprar?',
+      '1️⃣ Nos mandas la captura de la prenda que te gustó',
+      `2️⃣ La separas con ${soles(RESERVA)}`,
+      `3️⃣ Tienes ${DIAS_RESERVA} días para completar el pago`,
+      '',
+      'Enviamos a todo el Perú por Shalom 📦 ¿Qué prenda y talla estás buscando?',
+    ].join('\n'),
+    necesitaHumano: false,
+    nota: 'Llegó por un anuncio: le mandé la bienvenida.',
+    accion: 'none',
+    precio: 0,
+    saldo: 0,
+    itemId: null,
+    soloSeguro: true,
+  };
+}
+
 async function prepararBorrador(ajustes: Ajustes, conv: Conversacion, mensajes: Mensaje[]) {
+  // Lead nuevo de un anuncio: bienvenida fija, sin gastar en Claude.
+  if (esLeadDeAnuncioNuevo(mensajes)) {
+    const decision = {
+      respuesta: '', necesita_humano: false, nota_para_la_duena: '', accion: 'none', prenda_marca: '',
+      prenda_talla: '', prenda_tipo: '', precio_soles: 0, saldo_soles: 0, intencion: 'otro', monto_comprobante: 0,
+    } as Decision;
+    return { error: null, decision, prendas: [] as Candidata[], reconocida: undefined as Candidata | undefined, propuesta: bienvenidaDeAnuncio(conv.fullName || conv.contactName) } as const;
+  }
   const { decision, imagenes, error } = await redactar(ajustes, conv, mensajes);
   if (!decision) return { error: error ?? 'Sin respuesta', decision: null } as const;
 
