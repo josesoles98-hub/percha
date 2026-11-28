@@ -9,6 +9,7 @@ import { contarFiltrosActivos, paramsDesdeFiltros } from '@/lib/filtros-url';
 
 const RAPIDOS = [
   { clave: 'todo', etiqueta: 'Todo' },
+  { clave: 'modelo', etiqueta: '📸 Con modelo' },
   { clave: 'available', etiqueta: '🟢 Disponibles' },
   { clave: 'reserved', etiqueta: '🟡 Reservadas' },
   { clave: 'sold', etiqueta: '🔴 Vendidas' },
@@ -81,7 +82,11 @@ export function SearchAndFilters({
 
   function alternarRapido(clave: (typeof RAPIDOS)[number]['clave']) {
     if (clave === 'todo') {
-      navegar({ ...filtros, status: 'all', nuevas: false });
+      navegar({ ...filtros, status: 'all', nuevas: false, conModelo: false });
+      return;
+    }
+    if (clave === 'modelo') {
+      navegar({ ...filtros, conModelo: !filtros.conModelo });
       return;
     }
     if (clave === 'nuevas') {
@@ -92,7 +97,8 @@ export function SearchAndFilters({
   }
 
   const rapidoActivo = (clave: (typeof RAPIDOS)[number]['clave']) => {
-    if (clave === 'todo') return filtros.status === 'all' && !filtros.nuevas;
+    if (clave === 'todo') return filtros.status === 'all' && !filtros.nuevas && !filtros.conModelo;
+    if (clave === 'modelo') return Boolean(filtros.conModelo);
     if (clave === 'nuevas') return Boolean(filtros.nuevas);
     return filtros.status === clave;
   };
@@ -236,6 +242,7 @@ function HojaFiltros({
                 precioMin: null,
                 precioMax: null,
                 nuevas: false,
+                conModelo: false,
               })
             }
             className="tap text-label text-muted underline underline-offset-4"

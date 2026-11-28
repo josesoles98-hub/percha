@@ -32,6 +32,7 @@ export interface ItemRow {
   reserved_deposit_cents: number | null;
   days_left: number | null;
   customer_id: string | null;
+  con_modelo?: boolean | null;
   sold_at: string | null;
   sold_price_cents: number | null;
   share_count: number;
@@ -81,6 +82,7 @@ export function mapItem(row: ItemRow): Item {
     reservedDepositCents: row.reserved_deposit_cents,
     daysLeft: row.days_left,
     customerId: row.customer_id,
+    conModelo: row.con_modelo ?? false,
     soldAt: row.sold_at,
     soldPriceCents: row.sold_price_cents,
     shareCount: row.share_count,
@@ -131,7 +133,7 @@ export const ITEM_COLUMNS = `
   status, effective_status,
   brand_id, size_id, category_id, color_id, gender,
   reserved_at, reserve_expires_at, reserved_for_name, reserved_for_phone,
-  reserved_deposit_cents, days_left, customer_id,
+  reserved_deposit_cents, days_left, customer_id, con_modelo,
   sold_at, sold_price_cents, share_count,
   created_by, created_at, updated_at,
   brand_name, size_label, category_name, category_emoji, color_name, color_hex,

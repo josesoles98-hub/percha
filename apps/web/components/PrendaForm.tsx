@@ -25,6 +25,7 @@ interface Campos {
   categoryId: string | null;
   colorId: string | null;
   gender: ItemGender | null;
+  conModelo?: boolean;
   nombre: string;
   descripcion: string;
 }
@@ -188,6 +189,7 @@ export function PrendaForm({
       categoryId: campos.categoryId,
       colorId: campos.colorId,
       gender: campos.gender,
+      conModelo: Boolean(campos.conModelo),
       name: campos.nombre.trim() || null,
       description: campos.descripcion.trim() || null,
       // Solo se toca si la dueña puede verlo/editarlo: un vendedor no debe
@@ -233,6 +235,7 @@ export function PrendaForm({
       categoryId: campos.categoryId,
       colorId: campos.colorId,
       gender: campos.gender,
+      conModelo: Boolean(campos.conModelo),
       name: campos.nombre.trim() || null,
       description: campos.descripcion.trim() || null,
       costCents: puedeVerCosto ? costCents : null,
@@ -521,6 +524,20 @@ export function PrendaForm({
                     );
                   })}
                 </div>
+              </div>
+
+              <div>
+                <span className="mb-2 block text-label font-medium">Fotos</span>
+                <button
+                  type="button"
+                  onClick={() => set('conModelo', !campos.conModelo)}
+                  aria-pressed={Boolean(campos.conModelo)}
+                  className={`tap rounded-full border px-4 text-label transition-colors ${
+                    campos.conModelo ? 'border-accent bg-accent text-accent-ink' : 'border-line bg-surface'
+                  }`}
+                >
+                  📸 Tiene foto con modelo
+                </button>
               </div>
 
               <div>

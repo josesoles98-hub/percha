@@ -7,6 +7,7 @@ import {
   type StoreSettings,
 } from '@percha/core';
 
+import { compararTallas } from '../tallas';
 import { ITEM_COLUMNS, mapItem, type ItemRow } from './mappers';
 
 /**
@@ -46,6 +47,8 @@ export interface Filtros {
   precioMax?: number | null;
   /** Solo las de los últimos 7 días. */
   nuevas?: boolean;
+  /** Solo las que tienen foto con modelo. */
+  conModelo?: boolean;
   orden?: Orden;
 }
 
@@ -96,6 +99,7 @@ export async function listarPrendas(
     precioMin,
     precioMax,
     nuevas,
+    conModelo,
     orden = 'recientes',
   } = filtros;
 
@@ -110,6 +114,8 @@ export async function listarPrendas(
   if (gender) query = query.eq('gender', gender);
   if (typeof precioMin === 'number') query = query.gte('price_cents', precioMin);
   if (typeof precioMax === 'number') query = query.lte('price_cents', precioMax);
+
+  if (conModelo) query = query.eq('con_modelo', true);
 
   if (nuevas) {
     const hace7dias = new Date();
@@ -243,7 +249,10 @@ export async function getCatalogos(
 
   return {
     brands: (brands.data ?? []).map((b) => ({ id: b.id, name: b.name, useCount: b.use_count })),
-    sizes: (sizes.data ?? []).map((s) => ({ id: s.id, label: s.label, group: s.group_name })),
+    // Cada grupo (ropa, pantalón, calzado) en orden natural de talla.
+    sizes: (sizes.data ?? [])
+      .map((s) => ({ id: s.id, label: s.label, group: s.group_name }))
+      .sort((a, b) => a.group.localeCompare(b.group) || compararTallas(a.label, b.label)),
     categories: (categories.data ?? []).map((c) => ({ id: c.id, name: c.name, emoji: c.emoji })),
     colors: (colors.data ?? []).map((c) => ({ id: c.id, name: c.name, hex: c.hex })),
   };

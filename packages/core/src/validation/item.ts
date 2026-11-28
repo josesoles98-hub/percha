@@ -41,6 +41,8 @@ export const createItemSchema = z.object({
   categoryId: z.string().uuid().nullable().optional(),
   colorId: z.string().uuid().nullable().optional(),
   gender: itemGenderSchema.nullable().optional(),
+  /** Tiene al menos una foto con modelo. */
+  conModelo: z.boolean().optional(),
   costCents: z.number().int().min(0).nullable().optional(),
 
   status: itemStatusSchema.default('available'),

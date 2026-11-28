@@ -79,6 +79,7 @@ export default async function EditarPrendaPage({
           categoryId: item.categoryId,
           colorId: item.colorId,
           gender: item.gender,
+          conModelo: item.conModelo ?? false,
           nombre: item.name ?? '',
           descripcion: item.description ?? '',
         }}

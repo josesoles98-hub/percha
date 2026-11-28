@@ -43,6 +43,7 @@ export function filtrosDesdeParams(params: ParamsPlanos): Filtros {
     precioMin: aCentavos(primero(params.min)),
     precioMax: aCentavos(primero(params.max)),
     nuevas: primero(params.nuevas) === '1',
+    conModelo: primero(params.modelo) === '1',
     orden: orden && ORDENES.includes(orden) ? (orden as Orden) : 'recientes',
   };
 }
@@ -61,6 +62,7 @@ export function paramsDesdeFiltros(filtros: Filtros): URLSearchParams {
   if (typeof filtros.precioMin === 'number') params.set('min', String(filtros.precioMin / 100));
   if (typeof filtros.precioMax === 'number') params.set('max', String(filtros.precioMax / 100));
   if (filtros.nuevas) params.set('nuevas', '1');
+  if (filtros.conModelo) params.set('modelo', '1');
   if (filtros.orden && filtros.orden !== 'recientes') params.set('orden', filtros.orden);
 
   return params;
@@ -77,6 +79,7 @@ export function contarFiltrosActivos(filtros: Filtros): number {
   if (filtros.gender) total += 1;
   if (typeof filtros.precioMin === 'number' || typeof filtros.precioMax === 'number') total += 1;
   if (filtros.nuevas) total += 1;
+  if (filtros.conModelo) total += 1;
   return total;
 }
 

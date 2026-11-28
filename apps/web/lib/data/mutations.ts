@@ -56,6 +56,7 @@ export async function crearPrenda(
       category_id: input.categoryId ?? null,
       color_id: input.colorId ?? null,
       gender: input.gender ?? null,
+      con_modelo: input.conModelo ?? false,
       status: input.status,
     })
     .select('id, code')
@@ -105,6 +106,7 @@ export async function actualizarPrenda(
   if ('categoryId' in cambios) payload.category_id = cambios.categoryId ?? null;
   if ('colorId' in cambios) payload.color_id = cambios.colorId ?? null;
   if ('gender' in cambios) payload.gender = cambios.gender ?? null;
+  if ('conModelo' in cambios) payload.con_modelo = cambios.conModelo ?? false;
 
   const { error } = await supabase.from('items').update(payload).eq('id', id);
   return { data: null, error: error?.message ?? null };

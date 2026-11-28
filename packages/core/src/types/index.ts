@@ -124,6 +124,8 @@ export interface Item {
   daysLeft: number | null;
   /** A qué cliente (tabla `customers`) se reservó o vendió; null si no se ligó ninguno. */
   customerId: string | null;
+  /** Tiene al menos una foto con modelo (filtro «Con modelo»). */
+  conModelo?: boolean;
 
   soldAt: string | null;
   soldPriceCents: number | null;
