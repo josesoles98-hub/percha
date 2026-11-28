@@ -329,6 +329,11 @@ async function datosDePedidos(storeId: string, telefono: string | null, textos: 
 // La dueña igual aprueba cada mensaje (y confirma que la prenda sigue).
 
 const MEDIOS_PAGO = 'Yape: Jose Soles 977815875\nPlin: Alexandra Aviles 938268470';
+
+/** Ningún mensaje con los números de Yape/Plin sale solo: la dueña confirma antes que la prenda sigue libre. */
+function llevaNumerosDePago(texto: string) {
+  return /977\s*815\s*875|938\s*268\s*470|\byape\b|\bplin\b/i.test(texto);
+}
 const DIAS_RESERVA = 5;
 const RESERVA = 10;
 const RESERVA_ZAPATILLAS = 30;
@@ -441,10 +446,11 @@ function aplicarPlantillas(d: Decision, prenda: PrendaDelChat, reconocida: Candi
           '',
           `⏱️ Tienes 5 minutos para enviar el pago; si no, la prenda pasa al siguiente interesado. Luego tienes ${DIAS_RESERVA} días para completar el pago total.`,
         ].join('\n'),
-        necesitaHumano: false,
-        nota: 'No reconocí la prenda: le mandé los datos para separar. Revisa cuál es cuando llegue el pago.',
+        necesitaHumano: true,
+        nota: 'No reconocí la prenda: confirma que sigue disponible antes de enviar los números de pago.',
         accion: 'none',
-        soloSeguro: true,
+        // Lleva los números de pago: nunca sale solo, la dueña confirma la prenda primero.
+        soloSeguro: false,
       };
     }
     const queEs = [prenda.descripcion, prenda.precio ? `a ${soles(prenda.precio)}` : ''].filter(Boolean).join(' ');
@@ -468,8 +474,8 @@ function aplicarPlantillas(d: Decision, prenda: PrendaDelChat, reconocida: Candi
         .filter(Boolean)
         .join(' '),
       accion: 'none',
-      // Reconocida y libre en Percha: sale sola. Vendida o separada: la decide la dueña.
-      soloSeguro: !vendida,
+      // Lleva los números de pago: nunca sale solo, la dueña confirma la prenda primero.
+      soloSeguro: false,
     };
   }
 
@@ -1080,7 +1086,7 @@ async function revisarTiendaConCandado(ajustes: Ajustes) {
 
       // Mensaje simple y el agente tiene permiso: se envía ya, sin esperar a la dueña.
       let enviadoSolo = false;
-      if (ajustes.auto_reply && p.soloSeguro && p.respuesta) {
+      if (ajustes.auto_reply && p.soloSeguro && p.respuesta && !llevaNumerosDePago(p.respuesta)) {
         // Mientras Claude pensaba, alguien pudo responder o el cliente escribir de nuevo.
         const ahoraUltimo = (await mensajesDelChat(conv.id, 3)).at(-1);
         if (ahoraUltimo?.id === ultimo.id) {
